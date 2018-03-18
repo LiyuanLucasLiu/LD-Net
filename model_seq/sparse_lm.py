@@ -84,16 +84,20 @@ class SDRNN(nn.Module):
             else:
                 prune_mask = torch.cat([prune_mask, increase_mask_zero], dim = 0)
 
-        self.layer_list = new_layer_list
-        self.weight_list = nn.Parameter(torch.FloatTensor(new_weight_list))
-        self.layer = nn.ModuleList(self.layer_list)
+        if not new_layer_list:
+            self.output_dim = self.layer_list[0].input_dim
+            self.layer = None
+            self.weight_list = None
+            self.layer_list = None
+        else:
+            self.layer_list = new_layer_list
+            self.layer = nn.ModuleList(self.layer_list)
+            self.weight_list = nn.Parameter(torch.FloatTensor(new_weight_list))
+            self.weight_list.requires_grad = False
 
-        self.weight_list.requires_grad = False
+            for param in self.layer.parameters():
+                param.requires_grad = False
 
-        for param in self.layer.parameters():
-            param.requires_grad = False
-
-        self.output_dim = self.layer_list[-1].output_dim
         return prune_mask
 
     # def prox(self, lambda0, lambda1):
@@ -121,8 +125,9 @@ class SDRNN(nn.Module):
         return reg0, reg1, reg3
 
     def forward(self, x):
-        for ind in range(len(self.layer_list)):
-            x = self.layer[ind](x, self.weight_list[ind])
+        if self.layer_list is not None:
+            for ind in range(len(self.layer_list)):
+                x = self.layer[ind](x, self.weight_list[ind])
         return x
         # return self.layer(x)
 

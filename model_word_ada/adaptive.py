@@ -1,4 +1,4 @@
-% modified based on: https://github.com/rosinality/adaptive-softmax-pytorch/blob/master/adasoft.py
+# modified based on: https://github.com/rosinality/adaptive-softmax-pytorch/blob/master/adasoft.py
 import torch
 from torch import nn
 from torch.autograd import Variable

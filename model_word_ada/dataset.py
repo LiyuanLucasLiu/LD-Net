@@ -7,7 +7,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.autograd as autograd
 
 import sys
 import pickle
@@ -26,8 +25,8 @@ class EvalDataset(object):
 
         self.construct_index()
 
-    def get_tqdm(self):
-        return tqdm(self, mininterval=2, total=self.index_length, leave=False, file=sys.stdout, ncols=80)
+    def get_tqdm(self, device):
+        return tqdm(self.reader(device), mininterval=2, total=self.index_length, leave=False, file=sys.stdout, ncols=80)
 
     def construct_index(self):
         token_per_batch = self.sequence_length
@@ -43,20 +42,17 @@ class EvalDataset(object):
         self.index_length = len(self.x)
         self.cur_idx = 0
 
-    def __iter__(self):
-        return self
-
-    def __next__(self):
+    def reader(self, device):
         if self.cur_idx == self.index_length:
             self.cur_idx = 0
             raise StopIteration
 
-        word_t = autograd.Variable(self.x[self.cur_idx]).cuda().view(-1, 1)
-        label_t = autograd.Variable(self.y[self.cur_idx]).cuda().view(-1, 1)
+        word_t = self.x[self.cur_idx].to(device).view(-1, 1)
+        label_t = self.y[self.cur_idx].to(device).view(-1, 1)
 
         self.cur_idx += 1
         
-        return word_t, label_t
+        yield word_t, label_t
 
 class LargeDataset(object):
 
@@ -76,37 +72,36 @@ class LargeDataset(object):
     def shuffle(self):
         random.shuffle(self.shuffle_list)
 
-    def get_tqdm(self):
+    def get_tqdm(self, device):
         self.batch_count = 0
-
-        if self.total_batch_num <= 0:
-            return tqdm(self, mininterval=2, leave=False, file=sys.stdout).__iter__()
-        else:
-            return tqdm(self, mininterval=2, total=self.total_batch_num, leave=False, file=sys.stdout, ncols=80).__iter__()
-
-    def __iter__(self):
         self.cur_idx = 0
         self.file_idx = 0
         self.index_length = 0
-        return self
 
-    def __next__(self):
-        if self.cur_idx >= self.index_length:
+        if self.total_batch_num <= 0:
+            return tqdm(self.reader(device), mininterval=2, leave=False, file=sys.stdout).__iter__()
+        else:
+            return tqdm(self.reader(device), mininterval=2, total=self.total_batch_num, leave=False, file=sys.stdout, ncols=80).__iter__()
+
+
+    def reader(self, device):
+        while self.file_idx < self.range_idx:
+
             self.open_next()
+            while self.cur_idx < self.index_length:
 
-        word_t = autograd.Variable(self.x[self.cur_idx]).cuda()
-        # label_t = autograd.Variable(self.y[self.cur_idx]).cuda()
-        label_t = self.y[self.cur_idx].cuda()
+                word_t = self.x[self.cur_idx].to(device)
+                # label_t = self.y[self.cur_idx].to(device)
+                label_t = self.y[self.cur_idx].to(device)
 
-        self.cur_idx += 1
+                self.cur_idx += 1
 
-        return word_t, label_t
+                yield word_t, label_t
+
+        self.total_batch_num = self.batch_count
+        self.shuffle()
 
     def open_next(self):
-        if self.file_idx >= self.range_idx:
-            self.total_batch_num = self.batch_count
-            self.shuffle()
-            raise StopIteration
 
         self.dataset = pickle.load(open(self.root + 'train_' + str( self.shuffle_list[self.file_idx])+'.pk', 'rb'))
 

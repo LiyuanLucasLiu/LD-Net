@@ -2,7 +2,6 @@ from __future__ import print_function
 import datetime
 import time
 import torch
-import torch.autograd as autograd
 import torch.nn as nn
 import torch.optim as optim
 import codecs
@@ -75,7 +74,7 @@ if __name__ == "__main__":
     parser.add_argument('--use_writer', action='store_true')
     args = parser.parse_args()
 
-    torch.cuda.set_device(args.gpu)
+    device = torch.device("cuda:" + str(args.gpu) if args.gpu >= 0 else "cpu")
 
     print('loading data')
     dataset = pickle.load(open(args.corpus, 'rb'))
@@ -91,11 +90,9 @@ if __name__ == "__main__":
     blm_model = LM(blm_rnn_layer, None, len(blm_map), args.lm_word_dim, args.lm_droprate, label_dim = args.lm_label_dim)
 
     flm_file = torch.load(args.forward_lm, map_location=lambda storage, loc: storage)
-    flm_dictkey = flm_model.state_dict().keys()
-    flm_model.load_state_dict({k:v for k, v in flm_file['lm_model'].items() if k in flm_dictkey})
+    flm_model.load_state_dict(flm_file['lm_model'], False)
     blm_file = torch.load(args.backward_lm, map_location=lambda storage, loc: storage)
-    blm_dictkey = blm_model.state_dict().keys()
-    blm_model.load_state_dict({k:v for k, v in blm_file['lm_model'].items() if k in blm_dictkey})
+    blm_model.load_state_dict(blm_file['lm_model'], False)
 
     flm_model_seq = ElmoLM(flm_model, False, args.lm_droprate, True)
     blm_model_seq = ElmoLM(blm_model, True, args.lm_droprate, True)
@@ -107,7 +104,7 @@ if __name__ == "__main__":
 
     seq_model.rand_init()
     seq_model.load_pretrained_word_embedding(torch.FloatTensor(emb_array))
-    seq_model.cuda()
+    seq_model.to(device)
 
     crit = CRFLoss(y_map)
     decoder = CRFDecode(y_map)
@@ -139,10 +136,8 @@ if __name__ == "__main__":
 
     for indexs in range(args.epoch):
 
-        iterator = train_dataset.get_tqdm()
-
         seq_model.train()
-        for f_c, f_p, b_c, b_p, flm_w, blm_w, blm_ind, f_w, f_y, f_y_m, _ in iterator:
+        for f_c, f_p, b_c, b_p, flm_w, blm_w, blm_ind, f_w, f_y, f_y_m, _ in iterator = train_dataset.get_tqdm(device):
 
             seq_model.zero_grad()
             output = seq_model(f_c, f_p, b_c, b_p, flm_w, blm_w, blm_ind, f_w)
@@ -155,7 +150,7 @@ if __name__ == "__main__":
                 loss += args.seq_lambda0 * (flm_model_seq.regularizer(args.seq_lambda1) + blm_model_seq.regularizer(args.seq_lambda1))
 
             loss.backward()
-            torch.nn.utils.clip_grad_norm(seq_model.parameters(), args.clip)
+            torch.nn.utils.clip_grad_norm_(seq_model.parameters(), args.clip)
             optimizer.step()
 
             if args.seq_lambda0 > 0:
@@ -180,13 +175,13 @@ if __name__ == "__main__":
             writer.add_histogram(f_weight, flm_model_seq.rnn.weight_list.clone().cpu().data.numpy(), indexs)
             writer.add_histogram(b_weight, blm_model_seq.rnn.weight_list.clone().cpu().data.numpy(), indexs)
 
-        dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm())
+        dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
 
         if args.use_writer:
             writer.add_scalar(df1, dev_f1, indexs)
 
         if dev_f1 > best_f1:
-            test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm())
+            test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
             best_f1, best_dev_pre, best_dev_rec, best_dev_acc = dev_f1, dev_pre, dev_rec, dev_acc
 
             print('tot_loss: %.4f dev_f1: %.4f dev_rec: %.4f dev_pre: %.4f dev_acc: %.4f test_f1: %.4f test_rec: %.4f test_pre: %.4f test_acc: %.4f' % (tot_loss/(normalizer+0.001), dev_f1, dev_rec, dev_pre, dev_acc, test_f1, test_rec, test_pre, test_acc))
@@ -202,3 +197,6 @@ if __name__ == "__main__":
                 break
     
     print(' dev_f1: %.4f dev_rec: %.4f dev_pre: %.4f dev_acc: %.4f test_f1: %.4f test_rec: %.4f test_pre: %.4f test_acc: %.4f\n' % (best_f1, best_dev_rec, best_dev_pre, best_dev_acc, test_f1, test_rec, test_pre, test_acc))
+
+    if args.use_writer:
+        writer.close()

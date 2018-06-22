@@ -29,10 +29,12 @@ class SeqLabel(nn.Module):
         self.relu = nn.ReLU()
 
         self.c_hidden = c_hidden
-        self.char_fw = rnnunit_map[unit](c_dim, c_hidden, c_layer, dropout = droprate)
-        self.char_bw = rnnunit_map[unit](c_dim, c_hidden, c_layer, dropout = droprate)
+        tmp_rnn_dropout = droprate if c_layer > 1 else 0
+        self.char_fw = rnnunit_map[unit](c_dim, c_hidden, c_layer, dropout = tmp_rnn_dropout)
+        self.char_bw = rnnunit_map[unit](c_dim, c_hidden, c_layer, dropout = tmp_rnn_dropout)
 
-        self.word_rnn = rnnunit_map[unit](w_dim * 3, w_hidden // 2, w_layer, dropout = droprate, bidirectional = True)
+        tmp_rnn_dropout = droprate if w_layer > 1 else 0
+        self.word_rnn = rnnunit_map[unit](w_dim * 3, w_hidden // 2, w_layer, dropout = tmp_rnn_dropout, bidirectional = True)
 
         self.y_num = y_num
         self.crf = CRF(w_hidden, y_num)

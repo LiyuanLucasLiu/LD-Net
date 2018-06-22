@@ -8,13 +8,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import model_word_ada.utils as utils
-from model_word_ada.bnlstm import BNLSTM
 
 class BasicUnit(nn.Module):
     def __init__(self, unit, input_dim, hid_dim, droprate):
         super(BasicUnit, self).__init__()
 
-        rnnunit_map = {'rnn': nn.RNN, 'lstm': nn.LSTM, 'gru': nn.GRU, 'bnlstm': BNLSTM}
+        rnnunit_map = {'rnn': nn.RNN, 'lstm': nn.LSTM, 'gru': nn.GRU}
 
         self.batch_norm = (unit == 'bnlstm')
 

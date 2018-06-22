@@ -2,7 +2,6 @@ from __future__ import print_function
 import datetime
 import time
 import torch
-import torch.autograd as autograd
 import torch.nn as nn
 import torch.optim as optim
 import codecs
@@ -27,20 +26,16 @@ import sys
 import itertools
 import functools
 
-def evaluate(data_loader, lm_model, criterion, limited = 76800):
+def evaluate(data_loader, lm_model, limited = 76800):
     print('evaluating')
     lm_model.eval()
-
-    iterator = data_loader.get_tqdm()
-
     lm_model.init_hidden()
     total_loss = 0
     total_len = 0
-    for word_t, label_t in iterator:
+    for word_t, label_t in data_loader:
         label_t = label_t.view(-1)
         tmp_len = label_t.size(0)
-        output = lm_model.log_prob(word_t)
-        total_loss += tmp_len * utils.to_scalar(criterion(autograd.Variable(output), label_t))
+        total_loss += tmp_len * lm_model(word_t, label_t).item()
         total_len += tmp_len
 
         if limited >=0 and total_len > limited:
@@ -79,8 +74,7 @@ if __name__ == "__main__":
     parser.add_argument('--checkpath', default='checkpoint/')
     args = parser.parse_args()
 
-    if args.gpu >= 0:
-        torch.cuda.set_device(args.gpu)
+    device = torch.device("cuda:" + str(args.gpu) if args.gpu >= 0 else "cpu")
 
     print('loading dataset')
     dataset = pickle.load(open(args.dataset_folder + 'test.pk', 'rb'))
@@ -115,18 +109,11 @@ if __name__ == "__main__":
             print("loading checkpoint: '{}'".format(args.load_checkpoint))
             checkpoint_file = torch.load(args.load_checkpoint, map_location=lambda storage, loc: storage)
             model_file = checkpoint_file['lm_model']
-            cur_model = lm_model.state_dict()
-            for k, v in cur_model.items():
-                if k not in model_file:
-                    model_file[k] = v
-            lm_model.load_state_dict({k:v for k, v in model_file.items() if k in cur_model})
+            lm_model.load_state_dict(model_file, False)
         else:
             print("no checkpoint found at: '{}'".format(args.load_checkpoint))
 
-    test_lm = nn.NLLLoss()
-    
-    test_lm.cuda()
-    lm_model.cuda()
+    lm_model.to(device)
 
     writer = SummaryWriter(log_dir='./runs_1b/'+args.log_dir)
     name_list = ['batch_loss', 'train_ppl', 'test_ppl']
@@ -141,11 +128,9 @@ if __name__ == "__main__":
     try:
         for indexs in range(args.epoch):
 
-            iterator = train_loader.get_tqdm()
-
             lm_model.train()
 
-            for word_t, label_t in iterator:
+            for word_t, label_t in train_loader.get_tqdm(device):
 
                 if 1 == train_loader.cur_idx:
                     lm_model.init_hidden()
@@ -156,7 +141,7 @@ if __name__ == "__main__":
                 loss = lm_model(word_t, label_t)
                 
                 loss.backward()
-                torch.nn.utils.clip_grad_norm(lm_model.parameters(), args.clip)
+                torch.nn.utils.clip_grad_norm_(lm_model.parameters(), args.clip)
                 optimizer.step()
 
                 batch_index += 1 
@@ -183,7 +168,7 @@ if __name__ == "__main__":
                     print('adjust_learning_rate...')
                     utils.adjust_learning_rate(optimizer, cur_lr)
 
-            test_ppl = evaluate(test_loader, lm_model, test_lm)
+            test_ppl = evaluate(test_loader.get_tqdm(device), lm_model)
             writer.add_scalar(te_ppl, test_ppl, indexs)
         
             torch.save({'lm_model': lm_model.state_dict(), 'opt':optimizer.state_dict()}, args.checkpath+args.log_dir+'.model')
@@ -191,7 +176,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
 
         print('Exiting from training early')
-        test_ppl = evaluate(test_loader, lm_model, test_lm)
+        test_ppl = evaluate(test_loader.get_tqdm(device), lm_model)
         writer.add_scalar(te_ppl, test_ppl, indexs)
         torch.save({'lm_model': lm_model.state_dict(), 'opt':optimizer.state_dict()}, args.checkpath+args.log_dir+'.model')
 

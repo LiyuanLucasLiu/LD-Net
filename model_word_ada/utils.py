@@ -36,21 +36,22 @@ def sparse_clip_norm(parameters, max_norm):
     return total_norm
 
 def repackage_hidden(h):
-    if type(h) == Variable:
-        return Variable(h.data)
+    """Wraps hidden states in new Variables, to detach them from their history."""
+    if type(h) == torch.Tensor:
+        return h.detach()
     else:
         return tuple(repackage_hidden(v) for v in h)
 
 def to_scalar(var):
-    return var.view(-1).data.tolist()[0]
+    return var.view(-1).item()
 
 def init_embedding(input_embedding):
     bias = np.sqrt(3.0 / input_embedding.size(1))
-    nn.init.uniform(input_embedding, -bias, bias)
+    nn.init.uniform_(input_embedding, -bias, bias)
 
 def init_linear(input_linear):
     bias = np.sqrt(6.0 / (input_linear.weight.size(0) + input_linear.weight.size(1)))
-    nn.init.uniform(input_linear.weight, -bias, bias)
+    nn.init.uniform_(input_linear.weight, -bias, bias)
     if input_linear.bias is not None:
         input_linear.bias.data.zero_()
 
@@ -62,10 +63,10 @@ def init_lstm(input_lstm):
     for ind in range(0, input_lstm.num_layers):
         weight = eval('input_lstm.weight_ih_l'+str(ind))
         bias = np.sqrt(6.0 / (weight.size(0)/4 + weight.size(1)))
-        nn.init.uniform(weight, -bias, bias)
+        nn.init.uniform_(weight, -bias, bias)
         weight = eval('input_lstm.weight_hh_l'+str(ind))
         bias = np.sqrt(6.0 / (weight.size(0)/4 + weight.size(1)))
-        nn.init.uniform(weight, -bias, bias)
+        nn.init.uniform_(weight, -bias, bias)
     
     if input_lstm.bias:
         for ind in range(0, input_lstm.num_layers):

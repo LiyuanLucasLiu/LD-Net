@@ -8,7 +8,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.autograd as autograd
 
 import sys
 import pickle
@@ -39,8 +38,8 @@ class SeqDataset(object):
     def shuffle(self):
         random.shuffle(self.shuffle_list)
 
-    def get_tqdm(self):
-        return tqdm(self, mininterval=2, total=self.index_length // self.batch_size, leave=False, file=sys.stdout, ncols=80)
+    def get_tqdm(self, device):
+        return tqdm(self.reader(device), mininterval=2, total=self.index_length // self.batch_size, leave=False, file=sys.stdout, ncols=80)
 
     def construct_index(self, dataset):
 
@@ -53,8 +52,22 @@ class SeqDataset(object):
         self.dataset = dataset
         self.index_length = len(dataset)
         self.shuffle_list = list(range(0, self.index_length))
+    
+    def reader(self, device):
+        if self.cur_idx == self.index_length:
+            self.cur_idx = 0
+            self.shuffle()
+            raise StopIteration
 
-    def batchify(self, batch):
+        end_index = min(self.cur_idx + self.batch_size, self.index_length)
+
+        batch = [self.dataset[self.shuffle_list[index]] for index in range(self.cur_idx, end_index)]
+
+        self.cur_idx = end_index
+
+        yield self.batchify(batch)
+    
+    def batchify(self, batch, device):
         
         cur_batch_size = len(batch)
 
@@ -98,21 +111,4 @@ class SeqDataset(object):
         tbt[3] = tbt[3].view(-1)
         tbt[6] = tbt[6].view(-1)
 
-        return [autograd.Variable(ten).cuda() for ten in tbt] + [tmp_batch[10]]
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self.cur_idx == self.index_length:
-            self.cur_idx = 0
-            self.shuffle()
-            raise StopIteration
-
-        end_index = min(self.cur_idx + self.batch_size, self.index_length)
-
-        batch = [self.dataset[self.shuffle_list[index]] for index in range(self.cur_idx, end_index)]
-
-        self.cur_idx = end_index
-
-        return self.batchify(batch)
+        return [ten.to(device) for ten in tbt] + [tmp_batch[10]]

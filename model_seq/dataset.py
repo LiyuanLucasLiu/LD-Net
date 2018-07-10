@@ -65,7 +65,7 @@ class SeqDataset(object):
 
         self.cur_idx = end_index
 
-        yield self.batchify(batch)
+        yield self.batchify(batch, device)
     
     def batchify(self, batch, device):
         

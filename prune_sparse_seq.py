@@ -11,7 +11,6 @@ import math
 
 from model_word_ada.LM import LM
 from model_word_ada.basic import BasicRNN
-from model_word_ada.ddnet import DDRNN
 from model_word_ada.densenet import DenseRNN
 from model_word_ada.ldnet import LDRNN
 
@@ -34,8 +33,8 @@ import functools
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--corpus', default='./data/ner_dataset.pk')
-    parser.add_argument('--load_seq', default='./checkpoint/ner/s_nld0.model')
+    parser.add_argument('--corpus', default='../DDCLM/data/ner_dataset.pk')
+    parser.add_argument('--load_seq', default='../DDCLM/cp/ner/nld4.model')
     
     parser.add_argument('--log_dir', default='one_0')
     parser.add_argument('--checkpoint', default='./checkpoint/ner/s_nld1.model')
@@ -46,8 +45,8 @@ if __name__ == "__main__":
     parser.add_argument('--lm_word_dim', type=int, default=300)
     parser.add_argument('--lm_label_dim', type=int, default=1600)
     parser.add_argument('--lm_layer_num', type=int, default=10)
-    parser.add_argument('--lm_droprate', type=float, default=0.0)
-    parser.add_argument('--lm_rnn_layer', choices=['Basic', 'DDNet', 'DenseNet', 'LDNet'], default='LDNet')
+    parser.add_argument('--lm_droprate', type=float, default=0.5)
+    parser.add_argument('--lm_rnn_layer', choices=['Basic', 'DenseNet', 'LDNet'], default='LDNet')
     parser.add_argument('--lm_rnn_unit', choices=['gru', 'lstm', 'rnn', 'bnlstm'], default='lstm')
 
     parser.add_argument('--seq_c_dim', type=int, default=30)
@@ -74,7 +73,8 @@ if __name__ == "__main__":
     parser.add_argument('--use_writer', action='store_true')
     args = parser.parse_args()
 
-    torch.cuda.set_device(args.gpu)
+    # torch.cuda.set_device(args.gpu)
+    device = torch.device("cuda:" + str(args.gpu) if args.gpu >= 0 else "cpu")
 
     print('loading data')
     dataset = pickle.load(open(args.corpus, 'rb'))
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     flm_map, blm_map, gw_map, c_map, y_map, emb_array, train_data, test_data, dev_data = [dataset[tup] for tup in name_list ]
 
     print('loading language model')
-    rnn_map = {'Basic': BasicRNN, 'DDNet': DDRNN, 'DenseNet': DenseRNN, 'LDNet': functools.partial(LDRNN, layer_drop = 0)}
+    rnn_map = {'Basic': BasicRNN, 'DenseNet': DenseRNN, 'LDNet': functools.partial(LDRNN, layer_drop = 0)}
     flm_rnn_layer = rnn_map[args.lm_rnn_layer](args.lm_layer_num, args.lm_rnn_unit, args.lm_word_dim, args.lm_hid_dim, args.lm_droprate)
     blm_rnn_layer = rnn_map[args.lm_rnn_layer](args.lm_layer_num, args.lm_rnn_unit, args.lm_word_dim, args.lm_hid_dim, args.lm_droprate)
     flm_model = LM(flm_rnn_layer, None, len(flm_map), args.lm_word_dim, args.lm_droprate, label_dim = args.lm_label_dim)
@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
     seq_file = torch.load(args.load_seq, map_location=lambda storage, loc: storage)['seq_model']
     seq_model.load_state_dict(seq_file)
-    seq_model.cuda()
+    seq_model.to(device)
 
     crit = CRFLoss(y_map)
     decoder = CRFDecode(y_map)
@@ -131,7 +131,7 @@ if __name__ == "__main__":
 
     for indexs in range(args.epoch):
 
-        iterator = train_dataset.get_tqdm()
+        iterator = train_dataset.get_tqdm(device)
 
         seq_model.train()
         for f_c, f_p, b_c, b_p, flm_w, blm_w, blm_ind, f_w, f_y, f_y_m, _ in iterator:
@@ -182,7 +182,7 @@ if __name__ == "__main__":
             writer.add_histogram(f_weight, flm_model_seq.rnn.weight_list.clone().cpu().data.numpy(), indexs)
             writer.add_histogram(b_weight, blm_model_seq.rnn.weight_list.clone().cpu().data.numpy(), indexs)
 
-        dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm())
+        dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
 
         if args.use_writer:
             writer.add_scalar(df1, dev_f1, indexs)
@@ -194,7 +194,7 @@ if __name__ == "__main__":
 
             nonezero_count = tmp_nonezero_count
 
-            test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm())
+            test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
             best_f1, best_dev_pre, best_dev_rec, best_dev_acc = dev_f1, dev_pre, dev_rec, dev_acc
 
             print('nonezero: %.d tot_loss: %.4f dev_f1: %.4f dev_rec: %.4f dev_pre: %.4f dev_acc: %.4f test_f1: %.4f test_rec: %.4f test_pre: %.4f test_acc: %.4f' % (nonezero_count, tot_loss/(normalizer+0.001), dev_f1, dev_rec, dev_pre, dev_acc, test_f1, test_rec, test_pre, test_acc))
@@ -209,7 +209,7 @@ if __name__ == "__main__":
         elif dev_f1 > best_f1:
 
 
-            tmptest_f1, tmptest_pre, tmptest_rec, tmptest_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm())
+            tmptest_f1, tmptest_pre, tmptest_rec, tmptest_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
             
             print('nonezero: %.d tot_loss: %.4f dev_f1: %.4f dev_rec: %.4f dev_pre: %.4f dev_acc: %.4f tmptest_f1: %.4f tmptest_rec: %.4f tmptest_pre: %.4f tmptest_acc: %.4f' % (tmp_nonezero_count, tot_loss/(normalizer+0.001), dev_f1, dev_rec, dev_pre, dev_acc, tmptest_f1, tmptest_rec, tmptest_pre, tmptest_acc))
 
@@ -232,8 +232,8 @@ if __name__ == "__main__":
         seq_model.load_state_dict(seq_file)
         seq_model.cuda()
 
-        test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm())
-        dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm())
+        test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
+        dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
 
         print('dev_f1: %.4f dev_rec: %.4f dev_pre: %.4f dev_acc: %.4f test_f1: %.4f test_rec: %.4f test_pre: %.4f test_acc: %.4f\n' % (dev_f1, dev_rec, dev_pre, dev_acc, test_f1, test_rec, test_pre, test_acc))
 
@@ -245,8 +245,8 @@ if __name__ == "__main__":
         print('pruned results:')
         print(seq_model)
 
-        test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm())
-        dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm())
+        test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
+        dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
 
         print('dev_f1: %.4f dev_rec: %.4f dev_pre: %.4f dev_acc: %.4f test_f1: %.4f test_rec: %.4f test_pre: %.4f test_acc: %.4f\n' % (dev_f1, dev_rec, dev_pre, dev_acc, test_f1, test_rec, test_pre, test_acc))
 

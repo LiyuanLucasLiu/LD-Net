@@ -59,7 +59,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'Wrapper'
+project = 'LD-Net'
 copyright = '2018, Liyuan Liu'
 author = 'Liyuan Liu'
 
@@ -130,7 +130,7 @@ html_sidebars = {
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'Wrapperdoc'
+htmlhelp_basename = 'LD_Net'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -156,7 +156,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'wrapper.tex', 'Wrapper Documentation',
+    (master_doc, 'ldnet.tex', 'LD-Net Documentation',
      'Liyuan Liu', 'manual'),
 ]
 
@@ -165,7 +165,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'Wrapper', 'Wrapper Documentation',
+    (master_doc, 'LD-Net', 'LD-Net Documentation',
      [author], 1)
 ]
 
@@ -175,8 +175,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'Wrapper', 'Wrapper Documentation',
-     author, 'Wrapper', 'One line description of project.',
+    (master_doc, 'LD-Net', 'LD-Net Documentation',
+     author, 'LD-Net', 'Efficient Contextualized Representations.',
      'Miscellaneous'),
 ]
 
@@ -185,6 +185,5 @@ autodoc_mock_imports = ['tensorboardX', 'git']
 intersphinx_mapping = {
     'python':('https://docs.python.org/3', None),
     'numpy': ('http://docs.scipy.org/doc/numpy/', None),
-    'torch': ('http://pytorch.org/docs/master', None),
-    'matplotlib': ('http://matplotlib.sourceforge.net/', None),
+    'torch': ('http://pytorch.org/docs/master', None)
     }

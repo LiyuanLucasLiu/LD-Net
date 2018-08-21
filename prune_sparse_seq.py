@@ -11,7 +11,6 @@ import math
 
 from model_word_ada.LM import LM
 from model_word_ada.basic import BasicRNN
-from model_word_ada.ddnet import DDRNN
 from model_word_ada.densenet import DenseRNN
 from model_word_ada.ldnet import LDRNN
 
@@ -34,8 +33,8 @@ import functools
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--corpus', default='./data/ner_dataset.pk')
-    parser.add_argument('--load_seq', default='./checkpoint/ner/s_nld0.model')
+    parser.add_argument('--corpus', default='../DDCLM/data/ner_dataset.pk')
+    parser.add_argument('--load_seq', default='../DDCLM/cp/ner/nld4.model')
     
     parser.add_argument('--log_dir', default='one_0')
     parser.add_argument('--checkpoint', default='./checkpoint/ner/s_nld1.model')
@@ -47,7 +46,7 @@ if __name__ == "__main__":
     parser.add_argument('--lm_label_dim', type=int, default=1600)
     parser.add_argument('--lm_layer_num', type=int, default=10)
     parser.add_argument('--lm_droprate', type=float, default=0.0)
-    parser.add_argument('--lm_rnn_layer', choices=['Basic', 'DDNet', 'DenseNet', 'LDNet'], default='LDNet')
+    parser.add_argument('--lm_rnn_layer', choices=['Basic', 'DenseNet', 'LDNet'], default='LDNet')
     parser.add_argument('--lm_rnn_unit', choices=['gru', 'lstm', 'rnn', 'bnlstm'], default='lstm')
 
     parser.add_argument('--seq_c_dim', type=int, default=30)
@@ -83,7 +82,7 @@ if __name__ == "__main__":
     flm_map, blm_map, gw_map, c_map, y_map, emb_array, train_data, test_data, dev_data = [dataset[tup] for tup in name_list ]
 
     print('loading language model')
-    rnn_map = {'Basic': BasicRNN, 'DDNet': DDRNN, 'DenseNet': DenseRNN, 'LDNet': functools.partial(LDRNN, layer_drop = 0)}
+    rnn_map = {'Basic': BasicRNN, 'DenseNet': DenseRNN, 'LDNet': functools.partial(LDRNN, layer_drop = 0)}
     flm_rnn_layer = rnn_map[args.lm_rnn_layer](args.lm_layer_num, args.lm_rnn_unit, args.lm_word_dim, args.lm_hid_dim, args.lm_droprate)
     blm_rnn_layer = rnn_map[args.lm_rnn_layer](args.lm_layer_num, args.lm_rnn_unit, args.lm_word_dim, args.lm_hid_dim, args.lm_droprate)
     flm_model = LM(flm_rnn_layer, None, len(flm_map), args.lm_word_dim, args.lm_droprate, label_dim = args.lm_label_dim)
@@ -222,7 +221,7 @@ if __name__ == "__main__":
             if patience_count >= args.patience:
                 break
 
-    writer.close()
+    # writer.close()
     print('nonezero: %.d  dev_f1: %.4f dev_rec: %.4f dev_pre: %.4f dev_acc: %.4f test_f1: %.4f test_rec: %.4f test_pre: %.4f test_acc: %.4f\n' % (nonezero_count, best_f1, best_dev_rec, best_dev_pre, best_dev_acc, test_f1, test_rec, test_pre, test_acc))
 
     if args.pruned_output:

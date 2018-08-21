@@ -34,13 +34,13 @@ class SeqDataset(object):
 
         self.construct_index(dataset)
         self.shuffle()
-        self.cur_idx = 0
+        # self.cur_idx = 0
 
     def shuffle(self):
         random.shuffle(self.shuffle_list)
 
     def get_tqdm(self):
-        return tqdm(self, mininterval=2, total=self.index_length // self.batch_size, leave=False, file=sys.stdout, ncols=80)
+        return tqdm(self.reader(), mininterval=2, total=self.index_length // self.batch_size, leave=False, file=sys.stdout, ncols=80)
 
     def construct_index(self, dataset):
 
@@ -60,6 +60,8 @@ class SeqDataset(object):
 
         char_padded_len = max([len(tup[3]) for tup in batch])
         word_padded_len = max([len(tup[0]) for tup in batch])
+
+        self.token_count += word_padded_len * cur_batch_size
 
         tmp_batch =  [list() for ind in range(11)]
 
@@ -100,19 +102,19 @@ class SeqDataset(object):
 
         return [autograd.Variable(ten).cuda() for ten in tbt] + [tmp_batch[10]]
 
-    def __iter__(self):
-        return self
+    def reader(self):
 
-    def __next__(self):
-        if self.cur_idx == self.index_length:
-            self.cur_idx = 0
-            self.shuffle()
-            raise StopIteration
+        cur_idx = 0
+        self.token_count = 0
 
-        end_index = min(self.cur_idx + self.batch_size, self.index_length)
+        while cur_idx < self.index_length:
 
-        batch = [self.dataset[self.shuffle_list[index]] for index in range(self.cur_idx, end_index)]
+            end_index = min(cur_idx + self.batch_size, self.index_length)
 
-        self.cur_idx = end_index
+            batch = [self.dataset[self.shuffle_list[index]] for index in range(cur_idx, end_index)]
 
-        return self.batchify(batch)
+            cur_idx = end_index
+
+            yield self.batchify(batch)
+
+        self.shuffle()

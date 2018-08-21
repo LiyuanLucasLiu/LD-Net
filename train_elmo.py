@@ -36,9 +36,9 @@ import functools
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--corpus', default='./data/ner_dataset.pk')
-    parser.add_argument('--forward_lm', default='./checkpoint/basic_3.model')
-    parser.add_argument('--backward_lm', default='./checkpoint/basic_4.model')
+    parser.add_argument('--corpus', default='../DDCLM/data/ner_dataset.pk')
+    parser.add_argument('--forward_lm', default='../DDCLM/checkpoint/basic_3.model')
+    parser.add_argument('--backward_lm', default='../DDCLM/checkpoint/basic_4.model')
 
     parser.add_argument('--log_dir', default='one_0')
     parser.add_argument('--checkpoint', default='./checkpoint/ner/basic_0.model')
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     parser.add_argument('--seq_droprate', type=float, default=0.5)
     parser.add_argument('--seq_rnn_unit', choices=['gru', 'lstm', 'rnn'], default='lstm')
     parser.add_argument('--seq_model', choices=['vanilla', 'lm-aug'], default='lm-aug')
-    parser.add_argument('--seq_lambda0', type=float, default=0.01)
+    parser.add_argument('--seq_lambda0', type=float, default=0.0)
     parser.add_argument('--seq_lambda1', type=float, default=3)
 
     parser.add_argument('--update', choices=['Adam', 'Adagrad', 'Adadelta', 'SGD'], default='SGD')
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     flm_map, blm_map, gw_map, c_map, y_map, emb_array, train_data, test_data, dev_data = [dataset[tup] for tup in name_list ]
 
     print('loading language model')
-    rnn_map = {'Basic': BasicRNN, 'DDNet': DDRNN, 'DenseNet': DenseRNN, 'LDNet': functools.partial(LDRNN, layer_drop = 0)}
+    rnn_map = {'Basic': BasicRNN, 'DenseNet': DenseRNN, 'LDNet': functools.partial(LDRNN, layer_drop = 0)}
     flm_rnn_layer = rnn_map[args.lm_rnn_layer](args.lm_layer_num, args.lm_rnn_unit, args.lm_word_dim, args.lm_hid_dim, args.lm_droprate)
     blm_rnn_layer = rnn_map[args.lm_rnn_layer](args.lm_layer_num, args.lm_rnn_unit, args.lm_word_dim, args.lm_hid_dim, args.lm_droprate)
     flm_model = LM(flm_rnn_layer, None, len(flm_map), args.lm_word_dim, args.lm_droprate, label_dim = args.lm_label_dim)
@@ -190,6 +190,9 @@ if __name__ == "__main__":
             best_f1, best_dev_pre, best_dev_rec, best_dev_acc = dev_f1, dev_pre, dev_rec, dev_acc
 
             print('tot_loss: %.4f dev_f1: %.4f dev_rec: %.4f dev_pre: %.4f dev_acc: %.4f test_f1: %.4f test_rec: %.4f test_pre: %.4f test_acc: %.4f' % (tot_loss/(normalizer+0.001), dev_f1, dev_rec, dev_pre, dev_acc, test_f1, test_rec, test_pre, test_acc))
+
+            if args.checkpoint:
+                torch.save(seq_model, args.checkpoint)
 
             patience_count = 0
             if args.use_writer:

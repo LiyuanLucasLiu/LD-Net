@@ -1,10 +1,26 @@
-# modified based on: https://github.com/rosinality/adaptive-softmax-pytorch/blob/master/adasoft.py
+"""
+.. module:: adaptive
+    :synopsis: adaptive softmax
+ 
+.. moduleauthor:: Liyuan Liu
+"""
 import torch
 from torch import nn
 
 from math import sqrt
 
 class AdaptiveSoftmax(nn.Module):
+    """
+    The adaptive softmax layer.
+    Modified from: https://github.com/rosinality/adaptive-softmax-pytorch/blob/master/adasoft.py
+
+    Parameters
+    ----------
+    input_size : ``int``, required.
+        The input dimension.
+    cutoff : ``list``, required.
+        The list of cutoff values.
+    """
     def __init__(self, input_size, cutoff):
         super().__init__()
 
@@ -26,7 +42,9 @@ class AdaptiveSoftmax(nn.Module):
             self.tail.append(seq)
 
     def rand_ini(self):
-
+        """
+        Random Initialization.
+        """
         nn.init.xavier_normal_(self.head.weight)
 
         for tail in self.tail:
@@ -34,6 +52,20 @@ class AdaptiveSoftmax(nn.Module):
             nn.init.xavier_normal_(tail[1].weight)
 
     def log_prob(self, w_in, device):
+        """
+        Calculate log-probability for the whole dictionary.
+        
+        Parameters
+        ----------
+        w_in : ``torch.FloatTensor``, required.
+            the input tensor, of shape (word_num, input_dim).
+        device: ``torch.device``, required.
+            the target device for calculation.
+
+        Returns
+        ----------
+        The full log-probability.
+        """
         lsm = nn.LogSoftmax(dim=1).to(device)
 
         head_out = self.head(w_in)
@@ -55,7 +87,20 @@ class AdaptiveSoftmax(nn.Module):
         return prob
 
     def forward(self, w_in, target):
+        """
+        Calculate the log-likihood w.o. calculate the full distribution.
 
+        Parameters
+        ----------
+        w_in : ``torch.FloatTensor``, required.
+            the input tensor, of shape (word_num, input_dim).
+        target : ``torch.FloatTensor``, required.
+            the target of the language model, of shape (word_num).
+        
+        Returns
+        ----------
+        The NLL loss.
+        """
         batch_size = w_in.size(0)
         output = 0.0
 

@@ -11,6 +11,22 @@ import model_word_ada.utils as utils
 import random
 
 class BasicUnit(nn.Module):
+    """
+    The basic recurrent unit for the densely connected RNNs with layer-wise dropout.
+
+    Parameters
+    ----------
+    unit : ``torch.nn.Module``, required.
+        The type of rnn unit.
+    input_dim : ``float``, required.
+        The input dimension fo the unit.
+    increase_rate : ``float``, required.
+        The hidden dimension fo the unit.
+    droprate : ``float``, required.
+        The dropout ratrio.
+    layer_dropout : ``float``, required.
+        The layer-wise dropout ratrio.
+    """
     def __init__(self, unit, input_dim, increase_rate, droprate, layer_drop = 0):
         super(BasicUnit, self).__init__()
 
@@ -34,14 +50,32 @@ class BasicUnit(nn.Module):
         self.init_hidden()
 
     def init_hidden(self):
-
+        """
+        Initialize hidden states.
+        """
         self.hidden_state = None
 
     def rand_ini(self):
+        """
+        Random Initialization.
+        """
         return
 
     def forward(self, x, p_out):
+        """
+        Calculate the output.
 
+        Parameters
+        ----------
+        x : ``torch.LongTensor``, required.
+            the input tensor, of shape (seq_len, batch_size, input_dim).
+        p_out : ``torch.LongTensor``, required.
+            the final output tensor for the softmax, of shape (seq_len, batch_size, input_dim).
+
+        Returns
+        ----------
+        The outputs of RNNs to the next layer and the softmax.
+        """
         if self.droprate > 0:
             new_x = F.dropout(x, p=self.droprate, training=self.training)
         else:
@@ -63,6 +97,24 @@ class BasicUnit(nn.Module):
         return d_out, o_out
 
 class LDRNN(nn.Module):
+    """
+    The multi-layer recurrent networks for the densely connected RNNs with layer-wise dropout.
+
+    Parameters
+    ----------
+    layer_num: ``float``, required.
+        The number of layers. 
+    unit : ``torch.nn.Module``, required.
+        The type of rnn unit.
+    input_dim : ``float``, required.
+        The input dimension fo the unit.
+    hid_dim : ``float``, required.
+        The hidden dimension fo the unit.
+    droprate : ``float``, required.
+        The dropout ratrio.
+    layer_dropout : ``float``, required.
+        The layer-wise dropout ratrio.
+    """
     def __init__(self, layer_num, unit, emb_dim, hid_dim, droprate, layer_drop):
         super(LDRNN, self).__init__()
 
@@ -75,16 +127,32 @@ class LDRNN(nn.Module):
         self.init_hidden()
 
     def init_hidden(self):
-
+        """
+        Initialize hidden states.
+        """
         for tup in self.layer_list:
             tup.init_hidden()
 
     def rand_ini(self):
-
+        """
+        Random Initialization.
+        """
         for tup in self.layer_list:
             tup.rand_ini()
 
     def forward(self, x):
+        """
+        Calculate the output.
+
+        Parameters
+        ----------
+        x : ``torch.LongTensor``, required.
+            the input tensor, of shape (seq_len, batch_size, input_dim).
+
+        Returns
+        ----------
+        The output of RNNss to the Softmax.
+        """
         output = x
         for ind in range(self.layer_num):
             x, output = self.layer_list[ind](x, output)

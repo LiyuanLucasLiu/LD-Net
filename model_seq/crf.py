@@ -12,18 +12,47 @@ import torch.sparse as sparse
 import model_seq.utils as utils
 
 class CRF(nn.Module):
-    
-    def __init__(self, hidden_dim, tagset_size, if_bias=True):
+    """
+    Conditional Random Field Module
+
+    Parameters
+    ----------
+    hidden_dim : ``int``, required.
+        the dimension of the input features.
+    tagset_size : ``int``, required.
+        the size of the target labels.
+    if_bias: ``bool``, optional, (default=True).
+        whether the linear transformation has the bias term.
+    """
+    def __init__(self, 
+                hidden_dim: int, 
+                tagset_size: int, 
+                if_bias: bool = True):
         super(CRF, self).__init__()
         self.tagset_size = tagset_size
         self.hidden2tag = nn.Linear(hidden_dim, self.tagset_size, bias=if_bias)
         self.transitions = nn.Parameter(torch.Tensor(self.tagset_size, self.tagset_size))
 
     def rand_init(self):
+        """
+        random initialization
+        """
         utils.init_linear(self.hidden2tag)
         self.transitions.data.zero_()
 
     def forward(self, feats):
+        """
+        calculate the potential score for the conditional random field.
+
+        Parameters
+        ----------
+        feats: ``torch.FloatTensor``, required.
+            the input features for the conditional random field, of shape (*, hidden_dim).
+
+        Returns
+        -------
+        A float tensor of shape (ins_num, from_tag_size, to_tag_size)
+        """
         scores = self.hidden2tag(feats).view(-1, 1, self.tagset_size)
         ins_num = scores.size(0)
         crf_scores = scores.expand(ins_num, self.tagset_size, self.tagset_size) + self.transitions.view(1, self.tagset_size, self.tagset_size).expand(ins_num, self.tagset_size, self.tagset_size)
@@ -31,8 +60,21 @@ class CRF(nn.Module):
         return crf_scores
 
 class CRFLoss(nn.Module):
+    """
+    
+    The negative loss for the Conditional Random Field Module
 
-    def __init__(self, y_map, average_batch=True):
+    Parameters
+    ----------
+    y_map : ``dict``, required.
+        a ``dict`` maps from tag string to tag index.
+    average_batch : ``bool``, optional, (default=True).
+        whether the return score would be averaged per batch.
+    """
+
+    def __init__(self, 
+                 y_map: dict, 
+                 average_batch: bool = True):
         super(CRFLoss, self).__init__()
         self.tagset_size = len(y_map)
         self.start_tag = y_map['<s>']
@@ -40,6 +82,22 @@ class CRFLoss(nn.Module):
         self.average_batch = average_batch
 
     def forward(self, scores, target, mask):
+        """
+        calculate the negative log likehood for the conditional random field.
+
+        Parameters
+        ----------
+        scores: ``torch.FloatTensor``, required.
+            the potential score for the conditional random field, of shape (seq_len, batch_size, from_tag_size, to_tag_size).
+        target: ``torch.LongTensor``, required.
+            the positive path for the conditional random field, of shape (seq_len, batch_size).
+        mask: ``torch.ByteTensor``, required.
+            the mask for the unpadded sentence parts, of shape (seq_len, batch_size).
+
+        Returns
+        -------
+        The negative log likelihood.
+        """
         seq_len = scores.size(0)
         bat_size = scores.size(1)
 
@@ -54,7 +112,7 @@ class CRFLoss(nn.Module):
         for idx, cur_values in seq_iter:
             cur_values = cur_values + partition.unsqueeze(2).expand(bat_size, self.tagset_size, self.tagset_size)
 
-            cur_partition = utils.log_sum_exp(cur_values, self.tagset_size)
+            cur_partition = utils.log_sum_exp(cur_values)
 
             mask_idx = mask[idx, :].view(bat_size, 1).expand(bat_size, self.tagset_size)
             partition.masked_scatter_(mask_idx, cur_partition.masked_select(mask_idx))
@@ -67,8 +125,16 @@ class CRFLoss(nn.Module):
             return (partition - tg_energy)
 
 class CRFDecode():
+    """
+    
+    The negative loss for the Conditional Random Field Module
 
-    def __init__(self, y_map):
+    Parameters
+    ----------
+    y_map : ``dict``, required.
+        a ``dict`` maps from tag string to tag index.
+    """
+    def __init__(self, y_map: dict):
         self.tagset_size = len(y_map)
         self.start_tag = y_map['<s>']
         self.end_tag = y_map['<eof>']
@@ -76,7 +142,20 @@ class CRFDecode():
         self.r_y_map = {v:k for k, v in self.y_map.items()}
 
     def decode(self, scores, mask):
+        """
+        find the best path from the potential scores by the viterbi decoding algorithm.
 
+        Parameters
+        ----------
+        scores: ``torch.FloatTensor``, required.
+            the potential score for the conditional random field, of shape (seq_len, batch_size, from_tag_size, to_tag_size).
+        mask: ``torch.ByteTensor``, required.
+            the mask for the unpadded sentence parts, of shape (seq_len, batch_size).
+
+        Returns
+        -------
+        A LongTensor of shape (seq_len - 1, batch_size)
+        """
         seq_len = scores.size(0)
         bat_size = scores.size(1)
 
@@ -105,6 +184,18 @@ class CRFDecode():
         return decode_idx
 
     def to_spans(self, sequence):
+        """
+        decode the best path to spans.
+
+        Parameters
+        ----------
+        sequence: list, required.
+            the list of best label indexes paths .
+
+        Returns
+        -------
+        A set of chunks contains the position and type of the entities.
+        """
         chunks = []
         current = None
 

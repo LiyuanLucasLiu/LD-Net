@@ -16,7 +16,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class BasicSeqLM(nn.Module):
+    """
+    The language model for the dense rnns.
 
+    Parameters
+    ----------
+    ori_lm : ``torch.nn.Module``, required.
+        the original module of language model.
+    backward : ``bool``, required.
+        whether the language model is backward.
+    droprate : ``float``, required.
+        the dropout ratrio.
+    fix_rate: ``bool``, required.
+        whether to fix the rqtio.
+    """
     def __init__(self, ori_lm, backward, droprate, fix_rate):
         super(BasicSeqLM, self).__init__()
 
@@ -35,12 +48,36 @@ class BasicSeqLM(nn.Module):
         self.backward = backward
 
     def init_hidden(self):
+        """
+        initialize hidden states.
+        """
         self.rnn.init_hidden()
     
     def regularizer(self):
+        """
+        Calculate the regularization term.
+
+        Returns
+        ----------
+        The regularization term.
+        """
         return self.rnn.regularizer()
 
     def forward(self, w_in, ind=None):
+        """
+        Calculate the output.
+
+        Parameters
+        ----------
+        w_in : ``torch.LongTensor``, required.
+            the input tensor, of shape (seq_len, batch_size).
+        ind : ``torch.LongTensor``, optional, (default=None).
+            the index tensor for the backward language model, of shape (seq_len, batch_size).
+
+        Returns
+        ----------
+        The ELMo outputs.
+        """
         w_emb = self.word_embed(w_in)
         
         out = self.rnn(w_emb)

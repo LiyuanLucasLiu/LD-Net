@@ -31,14 +31,16 @@ import sys
 import itertools
 import functools
 
+from ipdb import set_trace
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--corpus', default='../DDCLM/data/ner_dataset.pk')
     parser.add_argument('--load_seq', default='../DDCLM/cp/ner/nld4.model')
     
     parser.add_argument('--log_dir', default='one_0')
-    parser.add_argument('--checkpoint', default='./checkpoint/ner/s_nld1.model')
-    parser.add_argument('--pruned_output', default='./checkpoint/ner/s_nld1.model')
+    parser.add_argument('--checkpoint', default='./checkpoint/ner/s_nld0.model')
+    parser.add_argument('--pruned_output', default='./checkpoint/ner/s_nld0.model')
     parser.add_argument('--gpu', type=int, default=1)
 
     parser.add_argument('--lm_hid_dim', type=int, default=300)
@@ -134,8 +136,10 @@ if __name__ == "__main__":
         iterator = train_dataset.get_tqdm(device)
 
         seq_model.train()
+        # set_trace()
         for f_c, f_p, b_c, b_p, flm_w, blm_w, blm_ind, f_w, f_y, f_y_m, _ in iterator:
 
+            # set_trace()
             seq_model.zero_grad()
             output = seq_model(f_c, f_p, b_c, b_p, flm_w, blm_w, blm_ind, f_w)
             loss = crit(output, f_y, f_y_m)
@@ -153,7 +157,7 @@ if __name__ == "__main__":
                     loss += args.seq_lambda0 * (f_reg1 + b_reg1)
 
             loss.backward()
-            torch.nn.utils.clip_grad_norm(seq_model.parameters(), args.clip)
+            torch.nn.utils.clip_grad_norm_(seq_model.parameters(), args.clip)
             optimizer.step()
 
             if args.seq_lambda0 > 0:

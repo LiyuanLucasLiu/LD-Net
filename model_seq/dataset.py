@@ -33,7 +33,6 @@ class SeqDataset(object):
 
         self.construct_index(dataset)
         self.shuffle()
-        self.cur_idx = 0
 
     def shuffle(self):
         random.shuffle(self.shuffle_list)
@@ -54,18 +53,13 @@ class SeqDataset(object):
         self.shuffle_list = list(range(0, self.index_length))
     
     def reader(self, device):
-        if self.cur_idx == self.index_length:
-            self.cur_idx = 0
-            self.shuffle()
-            raise StopIteration
-
-        end_index = min(self.cur_idx + self.batch_size, self.index_length)
-
-        batch = [self.dataset[self.shuffle_list[index]] for index in range(self.cur_idx, end_index)]
-
-        self.cur_idx = end_index
-
-        yield self.batchify(batch, device)
+        cur_idx = 0
+        while cur_idx < self.index_length:
+            end_index = min(cur_idx + self.batch_size, self.index_length)
+            batch = [self.dataset[self.shuffle_list[index]] for index in range(cur_idx, end_index)]
+            cur_idx = end_index
+            yield self.batchify(batch, device)
+        self.shuffle()
     
     def batchify(self, batch, device):
         

@@ -25,7 +25,8 @@ def repackage_hidden(h):
 
     Returns
     -------
-    detached hidden states, Tuple or Tensors.
+    hidden: ``Tuple`` or ``Tensors``.
+        detached hidden states, Tuple or Tensors.
     """
     if type(h) == torch.Tensor:
         return h.detach()

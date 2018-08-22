@@ -1,5 +1,8 @@
 # LD-RNN
 
+[![Documentation Status](https://readthedocs.org/projects/ld-net/badge/?version=latest)](http://ld-net.readthedocs.io/en/latest/?badge=latest)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 # Dependency
 My experiments' environments are:
 

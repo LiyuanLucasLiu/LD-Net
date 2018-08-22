@@ -67,7 +67,8 @@ class BasicUnit(nn.Module):
 
         Returns
         ----------
-        The output of RNNs.
+        output: ``torch.FloatTensor``.   
+            The output of RNNs.
         """
         if self.droprate > 0:
             new_x = F.dropout(x, p=self.droprate, training=self.training)
@@ -133,6 +134,7 @@ class DenseRNN(nn.Module):
 
         Returns
         ----------
-        The output of RNNs.
+        output: ``torch.FloatTensor``.
+            The output of RNNs.
         """
         return self.layer(x)

@@ -90,7 +90,8 @@ class LM(nn.Module):
         
         Returns
         ----------
-        The NLL loss.
+        loss: ``torch.FloatTensor``.
+            The NLL loss.
         """
 
         w_emb = self.word_embed(w_in)
@@ -118,7 +119,8 @@ class LM(nn.Module):
         
         Returns
         ----------
-        The full log-probability.
+        prob: ``torch.FloatTensor``.
+            The full log-probability.
         """
 
         w_emb = self.word_embed(w_in)

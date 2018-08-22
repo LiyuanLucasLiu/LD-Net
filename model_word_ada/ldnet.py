@@ -74,7 +74,10 @@ class BasicUnit(nn.Module):
 
         Returns
         ----------
-        The outputs of RNNs to the next layer and the softmax.
+        out: ``torch.FloatTensor``.
+            The undropped outputs of RNNs to the softmax.
+        p_out: ``torch.FloatTensor``.
+            The dropped outputs of RNNs to the next_layer.
         """
         if self.droprate > 0:
             new_x = F.dropout(x, p=self.droprate, training=self.training)
@@ -151,7 +154,8 @@ class LDRNN(nn.Module):
 
         Returns
         ----------
-        The output of RNNss to the Softmax.
+        output: ``torch.FloatTensor``.
+            The output of RNNs to the Softmax.
         """
         output = x
         for ind in range(self.layer_num):

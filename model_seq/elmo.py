@@ -48,7 +48,8 @@ class EBUnit(nn.Module):
 
         Returns
         ----------
-        The output of RNNs.
+        output: ``torch.FloatTensor``.
+            The output of RNNs.
         """
         out, _ = self.layer(x)
 
@@ -111,7 +112,8 @@ class ERNN(nn.Module):
 
         Returns
         ----------
-        The ELMo outputs.
+        output: ``torch.FloatTensor``.
+            The ELMo outputs.
         """
         out = 0
         nw = self.gamma * F.softmax(self.weight_list, dim=0)
@@ -162,7 +164,8 @@ class ElmoLM(nn.Module):
 
         Returns
         ----------
-        The regularization term.
+        reg: ``list``.
+            The list of regularization terms.
         """
         return self.rnn.regularizer(lambda1)
 
@@ -185,7 +188,8 @@ class ElmoLM(nn.Module):
 
         Returns
         ----------
-        The ELMo outputs.
+        output: ``torch.FloatTensor``.
+            The ELMo outputs.
         """
         w_emb = self.word_embed(w_in)
         

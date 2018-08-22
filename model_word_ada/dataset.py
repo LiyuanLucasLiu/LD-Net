@@ -43,10 +43,6 @@ class EvalDataset(object):
         device: ``torch.device``, required.
             the target device for the dataset loader.
 
-        Returns
-        -------
-        A tqdm object
-        
         """
         return tqdm(self.reader(device), mininterval=2, total=self.index_length, leave=False, file=sys.stdout, ncols=80)
 
@@ -78,8 +74,8 @@ class EvalDataset(object):
 
         Returns
         -------
-        A lazy iterable object
-        
+        reader: ``iterator``.
+            A lazy iterable object        
         """
         if self.cur_idx == self.index_length:
             self.cur_idx = 0
@@ -133,12 +129,7 @@ class LargeDataset(object):
         Parameters
         ----------
         device: ``torch.device``, required.
-            the target device for the dataset loader.
-
-        Returns
-        -------
-        A tqdm object
-        
+            the target device for the dataset loader.        
         """
         self.batch_count = 0
         self.cur_idx = 0
@@ -162,8 +153,8 @@ class LargeDataset(object):
 
         Returns
         -------
-        A lazy iterable object
-        
+        reader: ``iterator``.
+            A lazy iterable object        
         """
         while self.file_idx < self.range_idx:
 

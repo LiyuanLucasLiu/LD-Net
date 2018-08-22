@@ -104,7 +104,7 @@ class eval_batch:
 
     def eval_instance(self, best_path, gold):
         """
-        update inner counters for one instance.
+        Calculate statics to update inner counters for one instance.
 
         Parameters
         ----------
@@ -112,10 +112,7 @@ class eval_batch:
             the decoded best label index pathe.
         gold: required.
             the golden label index pathes.
-
-        Returns
-        -------
-        A list of statics.         
+      
         """
         total_labels = len(best_path)
         correct_labels = np.sum(np.equal(best_path, gold))
@@ -164,7 +161,8 @@ class eval_wc(eval_batch):
 
         Returns
         -------
-        calculated score.
+        score: ``float``.
+            calculated score.
         """
         seq_model.eval()
         self.reset()

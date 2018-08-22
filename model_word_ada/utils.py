@@ -20,13 +20,13 @@ def repackage_hidden(h):
 
     Parameters
     ----------
-    vec : required.
+    h : ``Tuple`` or ``Tensors``, required.
         Tuple or Tensors, hidden states.
 
     Returns
     -------
     hidden: ``Tuple`` or ``Tensors``.
-        detached hidden states, Tuple or Tensors.
+        detached hidden states
     """
     if type(h) == torch.Tensor:
         return h.detach()

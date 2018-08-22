@@ -145,7 +145,8 @@ class SeqLabel(nn.Module):
 
         Returns
         -------
-        A float tensor of shape (sequence_len, batch_size, from_tag_size, to_tag_size)
+        output: ``torch.FloatTensor``.
+            A float tensor of shape (sequence_len, batch_size, from_tag_size, to_tag_size)
         """
         self.set_batch_seq_size(f_w)
 
@@ -285,7 +286,8 @@ class Vanilla_SeqLabel(nn.Module):
 
         Returns
         -------
-        A float tensor of shape (sequence_len, batch_size, from_tag_size, to_tag_size)
+        output: ``torch.FloatTensor``.
+            A float tensor of shape (sequence_len, batch_size, from_tag_size, to_tag_size)
         """
         
         self.set_batch_seq_size(f_w)

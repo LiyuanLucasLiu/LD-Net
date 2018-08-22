@@ -67,7 +67,8 @@ class SBUnit(nn.Module):
 
         Returns
         ----------
-        The output of RNNs.
+        output: ``torch.FloatTensor``.
+            The output of RNNs.
         """
 
         if self.droprate > 0:
@@ -162,7 +163,12 @@ class SDRNN(nn.Module):
 
         Returns
         ----------
-        The regularization terms.
+        reg0: ``torch.FloatTensor``.
+            The value of reg0.
+        reg1: ``torch.FloatTensor``.
+            The value of reg1.
+        reg2: ``torch.FloatTensor``.
+            The value of reg2.
         """
         reg3 = (self.weight_list * (1 - self.weight_list)).sum()
         none_zero = self.weight_list.data > 0
@@ -182,7 +188,8 @@ class SDRNN(nn.Module):
 
         Returns
         ----------
-        The ELMo outputs.
+        output: ``torch.FloatTensor``.
+            The ELMo outputs.
         """
         if self.layer_list is not None:
             for ind in range(len(self.layer_list)):
@@ -240,7 +247,8 @@ class SparseSeqLM(nn.Module):
 
         Returns
         ----------
-        The regularization term.
+        reg: ``list``.
+            The list of regularization terms.
         """
         return self.rnn.regularizer(lambda1)
 
@@ -263,7 +271,8 @@ class SparseSeqLM(nn.Module):
 
         Returns
         ----------
-        The ELMo outputs.
+        output: ``torch.FloatTensor``.
+            The ELMo outputs.
         """
         w_emb = self.word_embed(w_in)
         

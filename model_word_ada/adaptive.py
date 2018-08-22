@@ -64,7 +64,8 @@ class AdaptiveSoftmax(nn.Module):
 
         Returns
         ----------
-        The full log-probability.
+        prob: ``torch.FloatTensor``.
+            The full log-probability.
         """
         lsm = nn.LogSoftmax(dim=1).to(device)
 
@@ -99,7 +100,8 @@ class AdaptiveSoftmax(nn.Module):
         
         Returns
         ----------
-        The NLL loss.
+        loss: ``torch.FloatTensor``.
+            The NLL loss.
         """
         batch_size = w_in.size(0)
         output = 0.0

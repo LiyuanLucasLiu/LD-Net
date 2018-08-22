@@ -84,10 +84,6 @@ class SeqDataset(object):
         device: ``torch.device``, required.
             the target device for the dataset loader.
 
-        Returns
-        -------
-        A tqdm object
-        
         """
         return tqdm(self.reader(device), mininterval=2, total=self.index_length // self.batch_size, leave=False, file=sys.stdout, ncols=80)
 
@@ -121,8 +117,8 @@ class SeqDataset(object):
 
         Returns
         -------
-        A lazy iterable object
-        
+        reader: ``iterator``.
+            A lazy iterable object        
         """
         cur_idx = 0
         while cur_idx < self.index_length:
@@ -142,11 +138,6 @@ class SeqDataset(object):
             a sample from the encoded dataset (outputs of preprocess scripts).  
         device: ``torch.device``, required.
             the target device for the dataset loader.
-
-
-        Returns
-        -------
-        A list of Tensors.        
         """
         
         cur_batch_size = len(batch)

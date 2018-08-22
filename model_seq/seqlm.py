@@ -59,7 +59,8 @@ class BasicSeqLM(nn.Module):
 
         Returns
         ----------
-        The regularization term.
+        reg: ``list``.
+            The list of regularization terms.
         """
         return self.rnn.regularizer()
 
@@ -76,7 +77,8 @@ class BasicSeqLM(nn.Module):
 
         Returns
         ----------
-        The ELMo outputs.
+        output: ``torch.FloatTensor``.
+            The ELMo outputs.
         """
         w_emb = self.word_embed(w_in)
         

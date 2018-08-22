@@ -62,7 +62,8 @@ class BasicUnit(nn.Module):
 
         Returns
         ----------
-        The output of RNNs.
+        output: ``torch.FloatTensor``.   
+            The output of RNNs.
         """
         out, new_hidden = self.layer(x, self.hidden_state)
 
@@ -124,6 +125,7 @@ class BasicRNN(nn.Module):
 
         Returns
         ----------
-        The output of RNNs.
+        output: ``torch.FloatTensor``.
+            The output of RNNs.
         """
         return self.layer(x)

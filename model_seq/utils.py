@@ -25,7 +25,8 @@ def log_sum_exp(vec):
 
     Returns
     -------
-    log sum exp results, tensor of shape (ins_num, to_tag_size)    
+    sum: ``torch.FloatTensor``.
+        log sum exp results, tensor of shape (ins_num, to_tag_size)    
     """
     max_score, _ = torch.max(vec, 1)
 
@@ -37,12 +38,13 @@ def repackage_hidden(h):
 
     Parameters
     ----------
-    vec : required.
+    h : ``Tuple`` or ``Tensors``, required.
         Tuple or Tensors, hidden states.
 
     Returns
     -------
-    detached hidden states, Tuple or Tensors.
+    hidden: ``Tuple`` or ``Tensors``.
+        detached hidden states
     """
     if type(h) == torch.Tensor:
         return h.detach()

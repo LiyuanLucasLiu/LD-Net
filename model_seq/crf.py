@@ -51,7 +51,8 @@ class CRF(nn.Module):
 
         Returns
         -------
-        A float tensor of shape (ins_num, from_tag_size, to_tag_size)
+        output: ``torch.FloatTensor``.
+            A float tensor of shape (ins_num, from_tag_size, to_tag_size)
         """
         scores = self.hidden2tag(feats).view(-1, 1, self.tagset_size)
         ins_num = scores.size(0)
@@ -96,7 +97,8 @@ class CRFLoss(nn.Module):
 
         Returns
         -------
-        The negative log likelihood.
+        loss: ``torch.FloatTensor``.
+            The NLL loss.
         """
         seq_len = scores.size(0)
         bat_size = scores.size(1)
@@ -154,7 +156,8 @@ class CRFDecode():
 
         Returns
         -------
-        A LongTensor of shape (seq_len - 1, batch_size)
+        output: ``torch.LongTensor``.
+            A LongTensor of shape (seq_len - 1, batch_size)
         """
         seq_len = scores.size(0)
         bat_size = scores.size(1)
@@ -194,7 +197,8 @@ class CRFDecode():
 
         Returns
         -------
-        A set of chunks contains the position and type of the entities.
+        output: ``set``.
+            A set of chunks contains the position and type of the entities.
         """
         chunks = []
         current = None

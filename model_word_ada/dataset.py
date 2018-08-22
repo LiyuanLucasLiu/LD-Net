@@ -16,7 +16,16 @@ from tqdm import tqdm
 from torch.utils.data import Dataset
 
 class EvalDataset(object):
+    """    
+    Dataset for Language Modeling
 
+    Parameters
+    ----------
+    dataset : ``list``, required.
+        The encoded dataset (outputs of preprocess scripts).
+    sequence_length: ``int``, required.
+        Sequence Length.
+    """
     def __init__(self, dataset, sequence_length):
         super(EvalDataset, self).__init__()
         self.dataset = dataset
@@ -26,9 +35,21 @@ class EvalDataset(object):
         self.construct_index()
 
     def get_tqdm(self, device):
+        """
+        construct dataset reader and the corresponding tqdm.
+
+        Parameters
+        ----------
+        device: ``torch.device``, required.
+            the target device for the dataset loader.
+
+        """
         return tqdm(self.reader(device), mininterval=2, total=self.index_length, leave=False, file=sys.stdout, ncols=80)
 
     def construct_index(self):
+        """
+        construct index for the dataset.
+        """
         token_per_batch = self.sequence_length
         tot_num = len(self.dataset) - 1
         res_num = tot_num - tot_num % token_per_batch
@@ -43,6 +64,19 @@ class EvalDataset(object):
         self.cur_idx = 0
 
     def reader(self, device):
+        """
+        construct dataset reader.
+
+        Parameters
+        ----------
+        device: ``torch.device``, required.
+            the target device for the dataset loader.
+
+        Returns
+        -------
+        reader: ``iterator``.
+            A lazy iterable object        
+        """
         if self.cur_idx == self.index_length:
             self.cur_idx = 0
             raise StopIteration
@@ -55,7 +89,20 @@ class EvalDataset(object):
         yield word_t, label_t
 
 class LargeDataset(object):
+    """    
+    Lazy Dataset for Language Modeling
 
+    Parameters
+    ----------
+    root : ``str``, required.
+        The root folder for dataset files.
+    range_idx : ``int``, required.
+        The maximum file index for the input files (train_*.pk).
+    batch_size : ``int``, required.
+        Batch size.
+    sequence_length: ``int``, required.
+        Sequence Length.
+    """
     def __init__(self, root, range_idx, batch_size, sequence_length):
         super(LargeDataset, self).__init__()
         self.root = root
@@ -70,9 +117,20 @@ class LargeDataset(object):
         self.total_batch_num = -1
 
     def shuffle(self):
+        """
+        shuffle dataset
+        """
         random.shuffle(self.shuffle_list)
 
     def get_tqdm(self, device):
+        """
+        construct dataset reader and the corresponding tqdm.
+
+        Parameters
+        ----------
+        device: ``torch.device``, required.
+            the target device for the dataset loader.        
+        """
         self.batch_count = 0
         self.cur_idx = 0
         self.file_idx = 0
@@ -85,6 +143,19 @@ class LargeDataset(object):
 
 
     def reader(self, device):
+        """
+        construct dataset reader.
+
+        Parameters
+        ----------
+        device: ``torch.device``, required.
+            the target device for the dataset loader.
+
+        Returns
+        -------
+        reader: ``iterator``.
+            A lazy iterable object        
+        """
         while self.file_idx < self.range_idx:
 
             self.open_next()
@@ -102,7 +173,9 @@ class LargeDataset(object):
         self.shuffle()
 
     def open_next(self):
-
+        """
+        Open the next file.
+        """
         self.dataset = pickle.load(open(self.root + 'train_' + str( self.shuffle_list[self.file_idx])+'.pk', 'rb'))
 
         res_num = len(self.dataset) - 1

@@ -17,8 +17,43 @@ import itertools
 from tqdm import tqdm
 
 class SeqDataset(object):
+    """    
+    Dataset for Sequence Labeling
 
-    def __init__(self, dataset, flm_pad, blm_pad, w_pad, c_con, c_pad, y_start, y_pad, y_size, batch_size):
+    Parameters
+    ----------
+    dataset : ``list``, required.
+        The encoded dataset (outputs of preprocess scripts).
+    flm_pad : ``int``, required.
+        The pad index for the forward language model.
+    blm_pad : ``int``, required.
+        The pad index for the backward language model.
+    w_pad : ``int``, required.
+        The pad index for the word-level inputs.
+    c_con : ``int``, required.
+        The index of connect character token for character-level inputs.
+    c_pad : ``int``, required.
+        The pad index for the character-level inputs.
+    y_start : ``int``, required.
+        The index of the start label token.
+    y_pad : ``int``, required.
+        The index of the pad label token.
+    y_size : ``int``, required.
+        The size of the tag set.
+    batch_size: ``int``, required.
+        Batch size.
+    """
+    def __init__(self, 
+                dataset: list, 
+                flm_pad: int, 
+                blm_pad: int, 
+                w_pad: int, 
+                c_con: int, 
+                c_pad: int, 
+                y_start: int, 
+                y_pad: int, 
+                y_size: int, 
+                batch_size: int):
         super(SeqDataset, self).__init__()
 
         self.flm_pad = flm_pad
@@ -33,16 +68,34 @@ class SeqDataset(object):
 
         self.construct_index(dataset)
         self.shuffle()
-        self.cur_idx = 0
 
     def shuffle(self):
+        """
+        shuffle dataset
+        """
         random.shuffle(self.shuffle_list)
 
     def get_tqdm(self, device):
+        """
+        construct dataset reader and the corresponding tqdm.
+
+        Parameters
+        ----------
+        device: ``torch.device``, required.
+            the target device for the dataset loader.
+
+        """
         return tqdm(self.reader(device), mininterval=2, total=self.index_length // self.batch_size, leave=False, file=sys.stdout, ncols=80)
 
     def construct_index(self, dataset):
+        """
+        construct index for the dataset.
 
+        Parameters
+        ----------
+        dataset: ``list``, required.
+            the encoded dataset (outputs of preprocess scripts).        
+        """
         for instance in dataset:
             c_len = [len(tup)+1 for tup in instance[3]]
             c_ins = [tup for ins in instance[3] for tup in (ins + [self.c_con])]
@@ -54,20 +107,38 @@ class SeqDataset(object):
         self.shuffle_list = list(range(0, self.index_length))
     
     def reader(self, device):
-        if self.cur_idx == self.index_length:
-            self.cur_idx = 0
-            self.shuffle()
-            raise StopIteration
+        """
+        construct dataset reader.
 
-        end_index = min(self.cur_idx + self.batch_size, self.index_length)
+        Parameters
+        ----------
+        device: ``torch.device``, required.
+            the target device for the dataset loader.
 
-        batch = [self.dataset[self.shuffle_list[index]] for index in range(self.cur_idx, end_index)]
-
-        self.cur_idx = end_index
-
-        yield self.batchify(batch, device)
+        Returns
+        -------
+        reader: ``iterator``.
+            A lazy iterable object        
+        """
+        cur_idx = 0
+        while cur_idx < self.index_length:
+            end_index = min(cur_idx + self.batch_size, self.index_length)
+            batch = [self.dataset[self.shuffle_list[index]] for index in range(cur_idx, end_index)]
+            cur_idx = end_index
+            yield self.batchify(batch, device)
+        self.shuffle()
     
     def batchify(self, batch, device):
+        """
+        batchify a batch of data and move to a device.
+
+        Parameters
+        ----------
+        batch: ``list``, required.
+            a sample from the encoded dataset (outputs of preprocess scripts).  
+        device: ``torch.device``, required.
+            the target device for the dataset loader.
+        """
         
         cur_batch_size = len(batch)
 

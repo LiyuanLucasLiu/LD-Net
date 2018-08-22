@@ -11,8 +11,50 @@ import model_seq.utils as utils
 from model_seq.crf import CRF
 
 class SeqLabel(nn.Module):
+    """
+    Sequence Labeling model augumented with language model.
 
-    def __init__(self, f_lm, b_lm, c_num, c_dim, c_hidden, c_layer, w_num, w_dim, w_hidden, w_layer, y_num, droprate, unit='lstm'):
+    Parameters
+    ----------
+    f_lm : ``torch.nn.Module``, required.
+        The forward language modle for contextualized representations.
+    b_lm : ``torch.nn.Module``, required.
+        The backward language modle for contextualized representations.
+    c_num : ``int`` , required.
+        The number of characters.
+    c_dim : ``int`` , required.
+        The dimension of character embedding.
+    c_hidden : ``int`` , required.
+        The dimension of character hidden states.
+    c_layer : ``int`` , required.
+        The number of character lstms.
+    w_num : ``int`` , required.
+        The number of words.
+    w_dim : ``int`` , required.
+        The dimension of word embedding.
+    w_hidden : ``int`` , required.
+        The dimension of word hidden states.
+    w_layer : ``int`` , required.
+        The number of word lstms.
+    y_num : ``int`` , required.
+        The number of tags types.
+    droprate : ``float`` , required
+        The dropout ratio.
+    unit : "str", optional, (default = 'lstm')
+        The type of the recurrent unit.
+    """
+    def __init__(self, f_lm, b_lm, 
+            c_num: int, 
+            c_dim: int, 
+            c_hidden: int, 
+            c_layer: int, 
+            w_num: int, 
+            w_dim: int, 
+            w_hidden: int, 
+            w_layer: int, 
+            y_num: int, 
+            droprate: float, 
+            unit: str = 'lstm'):
         super(SeqLabel, self).__init__()
 
         rnnunit_map = {'rnn': nn.RNN, 'lstm': nn.LSTM, 'gru': nn.GRU}
@@ -42,6 +84,9 @@ class SeqLabel(nn.Module):
         self.drop = nn.Dropout(p = droprate)
 
     def prune_dense_rnn(self):
+        """
+        Prune dense rnn to be smaller by delecting layers.
+        """
         f_prune_mask = self.f_lm.prune_dense_rnn()
         b_prune_mask = self.b_lm.prune_dense_rnn()
         prune_mask = torch.cat([f_prune_mask, b_prune_mask], dim = 0)
@@ -50,14 +95,23 @@ class SeqLabel(nn.Module):
         self.lm_seq.in_features = self.lm_seq.weight.size(1)
 
     def set_batch_seq_size(self, sentence):
+        """
+        Set the batch size and sequence length.
+        """
         tmp = sentence.size()
         self.word_seq_length = tmp[0]
         self.batch_size = tmp[1]
 
     def load_pretrained_word_embedding(self, pre_word_embeddings):
+        """
+        Load pre-trained word embedding.
+        """
         self.word_embed.weight = nn.Parameter(pre_word_embeddings)
 
     def rand_init(self):
+        """
+        Random initialization.
+        """
         utils.init_embedding(self.char_embed.weight)
         utils.init_lstm(self.char_fw)
         utils.init_lstm(self.char_bw)
@@ -67,7 +121,33 @@ class SeqLabel(nn.Module):
         self.crf.rand_init()
 
     def forward(self, f_c, f_p, b_c, b_p, flm_w, blm_w, blm_ind, f_w):
+        """
+        Calculate the output (crf potentials).
 
+        Parameters
+        ----------
+        f_c : ``torch.LongTensor``, required.
+            Character-level inputs in the forward direction.
+        f_p : ``torch.LongTensor``, required.
+            Ouput position of character-level inputs in the forward direction.
+        b_c : ``torch.LongTensor``, required.
+            Character-level inputs in the backward direction.
+        b_p : ``torch.LongTensor``, required.
+            Ouput position of character-level inputs in the backward direction.
+        flm_w : ``torch.LongTensor``, required.
+            Word-level inputs for the forward language model.
+        blm_w : ``torch.LongTensor``, required.
+            Word-level inputs for the backward language model.
+        blm_ind : ``torch.LongTensor``, required.
+            Ouput position of word-level inputs for the backward language model.
+        f_w: ``torch.LongTensor``, required.
+            Word-level inputs for the sequence labeling model.
+
+        Returns
+        -------
+        output: ``torch.FloatTensor``.
+            A float tensor of shape (sequence_len, batch_size, from_tag_size, to_tag_size)
+        """
         self.set_batch_seq_size(f_w)
 
         f_c_e = self.drop(self.char_embed(f_c))
@@ -103,7 +183,38 @@ class SeqLabel(nn.Module):
 
 
 class Vanilla_SeqLabel(nn.Module):
+    """
+    Sequence Labeling model augumented without language model.
 
+    Parameters
+    ----------
+    f_lm : ``torch.nn.Module``, required.
+        forward language modle for contextualized representations.
+    b_lm : ``torch.nn.Module``, required.
+        backward language modle for contextualized representations.
+    c_num : ``int`` , required.
+        number of characters.
+    c_dim : ``int`` , required.
+        dimension of character embedding.
+    c_hidden : ``int`` , required.
+        dimension of character hidden states.
+    c_layer : ``int`` , required.
+        number of character lstms.
+    w_num : ``int`` , required.
+        number of words.
+    w_dim : ``int`` , required.
+        dimension of word embedding.
+    w_hidden : ``int`` , required.
+        dimension of word hidden states.
+    w_layer : ``int`` , required.
+        number of word lstms.
+    y_num : ``int`` , required.
+        number of tags types.
+    droprate : ``float`` , required
+        dropout ratio.
+    unit : "str", optional, (default = 'lstm')
+        type of the recurrent unit.
+    """
     def __init__(self, f_lm, b_lm, c_num, c_dim, c_hidden, c_layer, w_num, w_dim, w_hidden, w_layer, y_num, droprate, unit='lstm'):
         super(Vanilla_SeqLabel, self).__init__()
 
@@ -134,9 +245,15 @@ class Vanilla_SeqLabel(nn.Module):
         self.batch_size = tmp[1]
 
     def load_pretrained_word_embedding(self, pre_word_embeddings):
+        """
+        Load pre-trained word embedding.
+        """
         self.word_embed.weight = nn.Parameter(pre_word_embeddings)
 
     def rand_init(self):
+        """
+        Random initialization.
+        """
         utils.init_embedding(self.char_embed.weight)
         utils.init_lstm(self.char_fw)
         utils.init_lstm(self.char_bw)
@@ -145,7 +262,34 @@ class Vanilla_SeqLabel(nn.Module):
         self.crf.rand_init()
 
     def forward(self, f_c, f_p, b_c, b_p, flm_w, blm_w, blm_ind, f_w):
+        """
+        Calculate the output (crf potentials).
 
+        Parameters
+        ----------
+        f_c : ``torch.LongTensor``, required.
+            Character-level inputs in the forward direction.
+        f_p : ``torch.LongTensor``, required.
+            Ouput position of character-level inputs in the forward direction.
+        b_c : ``torch.LongTensor``, required.
+            Character-level inputs in the backward direction.
+        b_p : ``torch.LongTensor``, required.
+            Ouput position of character-level inputs in the backward direction.
+        flm_w : ``torch.LongTensor``, required.
+            Word-level inputs for the forward language model.
+        blm_w : ``torch.LongTensor``, required.
+            Word-level inputs for the backward language model.
+        blm_ind : ``torch.LongTensor``, required.
+            Ouput position of word-level inputs for the backward language model.
+        f_w: ``torch.LongTensor``, required.
+            Word-level inputs for the sequence labeling model.
+
+        Returns
+        -------
+        output: ``torch.FloatTensor``.
+            A float tensor of shape (sequence_len, batch_size, from_tag_size, to_tag_size)
+        """
+        
         self.set_batch_seq_size(f_w)
 
         f_c_e = self.drop(self.char_embed(f_c))

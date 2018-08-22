@@ -2,36 +2,36 @@ Language Modeling
 ==========================
 
 model_word_ada\.adaptive module
-----------------------
-.. automodule:: model_word.adaptive
+-------------------------------
+.. automodule:: model_word_ada.adaptive
 	:members:
 
 model_word_ada\.basic module
-----------------------
-.. automodule:: model_word.basic
+----------------------------
+.. automodule:: model_word_ada.basic
 	:members:
 
 model_word_ada\.dataset module
-----------------------
-.. automodule:: model_word.dataset
+-------------------------------
+.. automodule:: model_word_ada.dataset
 	:members:
 
 model_word_ada\.densenet module
-----------------------
-.. automodule:: model_word.densenet
+-------------------------------
+.. automodule:: model_word_ada.densenet
 	:members:
 
 model_word_ada\.ldnet module
-----------------------
-.. automodule:: model_word.ldnet
+----------------------------
+.. automodule:: model_word_ada.ldnet
 	:members:
 
 model_word_ada\.LM module
-----------------------
-.. automodule:: model_word.LM
+-------------------------
+.. automodule:: model_word_ada.LM
 	:members:
 
 model_word_ada\.utils module
-----------------------
-.. automodule:: model_word.utils
+----------------------------
+.. automodule:: model_word_ada.utils
 	:members:

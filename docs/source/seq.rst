@@ -4,6 +4,7 @@ Sequence Labeling
 model_seq\.crf module
 ----------------------
 .. automodule:: model_seq.crf
+	:members:
 
 model_seq\.dataset module
 --------------------------

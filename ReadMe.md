@@ -1,22 +1,44 @@
-# LD-RNN
+# LD-Net
 
 [![Documentation Status](https://readthedocs.org/projects/ld-net/badge/?version=latest)](http://ld-net.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-# Dependency
-My experiments' environments are:
+LD-Net provides sequence labeling models features:
+- **Efficiency**, i.e., constructing *efficient contextualized representations* without retraining language models. 
+- **Portability**, i.e., our implementations are well *organized*, easy to *modify* and well *[documented](http://lm-lstm-crf.readthedocs.io/en/latest/)*.
 
-* python 3.6
-* pytorch 0.4
-* [tensorboard for pytorch](https://github.com/lanpa/tensorboard-pytorch)
-* tqdm
+Remarkablely, our pre-trained NER model achieved 92.08 on the CoNLL03 test set, which can conduct decoding w. the speed of 160K words / sec, a **six times** speed-up comparing to its original model.
 
-# Docs
+Details about LD-Net can be accessed at: https://arxiv.org/abs/1804.07827.
 
-in process...
+- [Model](#model-notes)
+- [Benchmarks](#benchmarks)
+- [Pretrained model](#pretrained-model)
+- [Training](#model-training)
+	- [Dependency](#dependency)
+	- [Data](#data)
+	- [Model](#model)
+	- [Command](#command)
 
+## Model Notes
+
+## Benchmarks
+
+## Pretrained Models
+
+## Training
+
+### Dependency
+
+```
 numpy==1.13.1
 tqdm
 pytorch==0.4.1
-https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-1.6.0-cp34-cp34m-linux_x86_64.whl
 tensorboardX
+```
+
+### Data
+
+### Model
+
+### Command 

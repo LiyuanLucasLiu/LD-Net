@@ -22,7 +22,7 @@ from model_seq.seqlm import BasicSeqLM
 from model_seq.sparse_lm import SparseSeqLM
 import model_seq.utils as utils
 
-from tensorboardX import SummaryWriter
+import tbwrapper.wrapper as wrapper
 
 import argparse
 import json
@@ -35,13 +35,14 @@ from ipdb import set_trace
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    
+    parser.add_argument('--gpu', type=str, default="auto")
+    parser.add_argument('--cp_root', default='./checkpoint')
+    parser.add_argument('--checkpoint_name', default='pner')
+    parser.add_argument('--git_tracking', action='store_true')
+
     parser.add_argument('--corpus', default='../DDCLM/data/ner_dataset.pk')
     parser.add_argument('--load_seq', default='../DDCLM/cp/ner/nld4.model')
-    
-    parser.add_argument('--log_dir', default='one_0')
-    parser.add_argument('--checkpoint', default='./checkpoint/ner/s_nld0.model')
-    parser.add_argument('--pruned_output', default='./checkpoint/ner/s_nld0.model')
-    parser.add_argument('--gpu', type=int, default=1)
 
     parser.add_argument('--lm_hid_dim', type=int, default=300)
     parser.add_argument('--lm_word_dim', type=int, default=300)
@@ -71,46 +72,48 @@ if __name__ == "__main__":
     parser.add_argument('--clip', type=float, default=5)
     parser.add_argument('--lr', type=float, default=0.015)
     parser.add_argument('--lr_decay', type=float, default=0.05)
-
-    parser.add_argument('--use_writer', action='store_true')
     args = parser.parse_args()
 
-    # torch.cuda.set_device(args.gpu)
-    device = torch.device("cuda:" + str(args.gpu) if args.gpu >= 0 else "cpu")
+    tbw = wrapper(os.path.join(args.cp_root, args.checkpoint_name), args.checkpoint_name, enable_git_track=args.git_tracking)
+    tbw.set_level('info')
+    logger = tbw.get_logger()
 
-    print('loading data')
+    gpu_index = tbw.auto_device() if 'auto' == args.gpu else int(args.gpu)
+    device = torch.device("cuda:" + str(gpu_index) if gpu_index >= 0 else "cpu")
+
+    logger.info('Loading data from {}.'.format(args.corpus))
+
     dataset = pickle.load(open(args.corpus, 'rb'))
     name_list = ['flm_map', 'blm_map', 'gw_map', 'c_map', 'y_map', 'emb_array', 'train_data', 'test_data', 'dev_data']
-
     flm_map, blm_map, gw_map, c_map, y_map, emb_array, train_data, test_data, dev_data = [dataset[tup] for tup in name_list ]
 
-    print('loading language model')
+    logger.info('Building language models and seuqence labeling models.')
+
     rnn_map = {'Basic': BasicRNN, 'DenseNet': DenseRNN, 'LDNet': functools.partial(LDRNN, layer_drop = 0)}
     flm_rnn_layer = rnn_map[args.lm_rnn_layer](args.lm_layer_num, args.lm_rnn_unit, args.lm_word_dim, args.lm_hid_dim, args.lm_droprate)
     blm_rnn_layer = rnn_map[args.lm_rnn_layer](args.lm_layer_num, args.lm_rnn_unit, args.lm_word_dim, args.lm_hid_dim, args.lm_droprate)
     flm_model = LM(flm_rnn_layer, None, len(flm_map), args.lm_word_dim, args.lm_droprate, label_dim = args.lm_label_dim)
     blm_model = LM(blm_rnn_layer, None, len(blm_map), args.lm_word_dim, args.lm_droprate, label_dim = args.lm_label_dim)
-
     flm_model_seq = SparseSeqLM(flm_model, False, args.lm_droprate, args.fix_rate)
     blm_model_seq = SparseSeqLM(blm_model, True, args.lm_droprate, args.fix_rate)
-
-    print('building model')
-
     SL_map = {'vanilla':Vanilla_SeqLabel, 'lm-aug': SeqLabel}
     seq_model = SL_map[args.seq_model](flm_model_seq, blm_model_seq, len(c_map), args.seq_c_dim, args.seq_c_hid, args.seq_c_layer, len(gw_map), args.seq_w_dim, args.seq_w_hid, args.seq_w_layer, len(y_map), args.seq_droprate, unit=args.seq_rnn_unit)
+
+    logger.info('Loading pre-trained models from {}.'.format(args.load_seq))
 
     seq_file = torch.load(args.load_seq, map_location=lambda storage, loc: storage)['seq_model']
     seq_model.load_state_dict(seq_file)
     seq_model.to(device)
-
     crit = CRFLoss(y_map)
     decoder = CRFDecode(y_map)
     evaluator = eval_wc(decoder, 'f1')
 
-    print('constructing dataset')
+    logger.info('Constructing dataset.')
+
     train_dataset, test_dataset, dev_dataset = [SeqDataset(tup_data, flm_map['\n'], blm_map['\n'], gw_map['<\n>'], c_map[' '], c_map['\n'], y_map['<s>'], y_map['<eof>'], len(y_map), args.batch_size) for tup_data in [train_data, test_data, dev_data]]
 
-    print('constructing optimizer')
+    logger.info('Constructing optimizer.')
+
     param_dict = filter(lambda t: t.requires_grad, seq_model.parameters())
     optim_map = {'Adam' : optim.Adam, 'Adagrad': optim.Adagrad, 'Adadelta': optim.Adadelta, 'SGD': functools.partial(optim.SGD, momentum=0.9)}
     if args.lr > 0:
@@ -118,28 +121,25 @@ if __name__ == "__main__":
     else:
         optimizer=optim_map[args.update](param_dict)
 
-    if args.use_writer:
-        writer = SummaryWriter(log_dir='./chunking/'+args.log_dir)
-        name_list = ['train_loss', 'train_prox', 'dev_f1', 'test_f1','forward_weight', 'forward_non', 'backward_weight', 'backward_non']
-        tloss, tprox, df1, tf1, f_weight, f_non, b_weight, b_non  = [args.log_dir+'/'+tup for tup in name_list]
-    
+    logger.info('Saving configues.')
+    tbw.save_configue(args)
+
+    logger.info('Setting up training environ.')
     best_f1 = float('-inf')
     current_lr = args.lr
     patience_count = 0
     batch_index = 0
-    prox_count = 0
     normalizer = 0
     tot_loss = 0
 
+    logger.info('Start training...')
     for indexs in range(args.epoch):
 
         iterator = train_dataset.get_tqdm(device)
 
         seq_model.train()
-        # set_trace()
         for f_c, f_p, b_c, b_p, flm_w, blm_w, blm_ind, f_w, f_y, f_y_m, _ in iterator:
 
-            # set_trace()
             seq_model.zero_grad()
             output = seq_model(f_c, f_p, b_c, b_p, flm_w, blm_w, blm_ind, f_w)
             loss = crit(output, f_y, f_y_m)
@@ -160,100 +160,79 @@ if __name__ == "__main__":
             torch.nn.utils.clip_grad_norm_(seq_model.parameters(), args.clip)
             optimizer.step()
 
-            if args.seq_lambda0 > 0:
-                prox_count += flm_model_seq.prox(args.seq_lambda0 * current_lr, args.seq_lambda1) + blm_model_seq.prox(args.seq_lambda0 * current_lr, args.seq_lambda1)
-
-            if args.use_writer and 0 == (batch_index + 1) % 100:
-                tot_loss = tot_loss / normalizer
-                prox_count = prox_count / normalizer
-                writer.add_scalar(tloss, tot_loss, batch_index)
-                writer.add_scalar(tprox, prox_count, batch_index)
+            if 0 == (batch_index + 1) % 100:
+                tbw.add_loss_vs_batch({'training_loss': tot_loss / (normalizer + 1e-9)}, batch_index, add_log = False)
                 tot_loss = 0
                 normalizer = 0
-                prox_count = 0
         
             batch_index += 1
 
-        if args.update == 'SGD':
-            current_lr = args.lr / (1 + (indexs + 1) * args.lr_decay)
-            utils.adjust_learning_rate(optimizer, current_lr)
-
-        print(flm_model_seq.rnn.weight_list.data.view(1, -1))
-        print(blm_model_seq.rnn.weight_list.data.view(1, -1))
-        if args.use_writer:
-            # writer.add_histogram(f_non, flm_model_seq.rnn.weight_list.data.nonzero().cpu().numpy(), indexs)
-            # writer.add_histogram(b_non, blm_model_seq.rnn.weight_list.data.nonzero().cpu().numpy(), indexs)
-            writer.add_histogram(f_weight, flm_model_seq.rnn.weight_list.clone().cpu().data.numpy(), indexs)
-            writer.add_histogram(b_weight, blm_model_seq.rnn.weight_list.clone().cpu().data.numpy(), indexs)
+        current_lr = args.lr / (1 + (indexs + 1) * args.lr_decay)
+        utils.adjust_learning_rate(optimizer, current_lr)
 
         dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
+        nonezero_count = (flm_model_seq.rnn.weight_list.data > 0).int().cpu().sum() + (blm_model_seq.rnn.weight_list.data > 0).cpu().int().sum()
 
-        if args.use_writer:
-            writer.add_scalar(df1, dev_f1, indexs)
+        tbw.add_loss_vs_batch({'dev_f1': dev_f1, 'none_zero_count': nonezero_count}, batch_index, add_log = True)
+        tbw.add_loss_vs_batch({'dev_pre': dev_pre, 'dev_rec': dev_rec}, batch_index, add_log = False)
 
+        tbw.info('Saveing model...')
+        tbw.save_checkpoint(model = seq_model, is_best = (nonezero_count <= args.seq_lambda1 and dev_f1 > best_f1))
 
-        tmp_nonezero_count = (flm_model_seq.rnn.weight_list.data > 0).int().cpu().sum() + (blm_model_seq.rnn.weight_list.data > 0).cpu().int().sum()
-
-        if tmp_nonezero_count <= args.seq_lambda1 and dev_f1 > best_f1:
-
-            nonezero_count = tmp_nonezero_count
+        if nonezero_count <= args.seq_lambda1 and dev_f1 > best_f1:
+            nonezero_count = nonezero_count
 
             test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
             best_f1, best_dev_pre, best_dev_rec, best_dev_acc = dev_f1, dev_pre, dev_rec, dev_acc
 
-            print('nonezero: %.d tot_loss: %.4f dev_f1: %.4f dev_rec: %.4f dev_pre: %.4f dev_acc: %.4f test_f1: %.4f test_rec: %.4f test_pre: %.4f test_acc: %.4f' % (nonezero_count, tot_loss/(normalizer+0.001), dev_f1, dev_rec, dev_pre, dev_acc, test_f1, test_rec, test_pre, test_acc))
+            tbw.add_loss_vs_batch({'tot_loss': tot_loss/(normalizer+1e-9), 'test_f1': test_f1}, batch_index, add_log = True)
+            tbw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, batch_index, add_log = False)
 
             patience_count = 0
-            if args.use_writer:
-                writer.add_scalar(tf1, test_f1, indexs)
 
-            if args.checkpoint:
-                print('saving...')
-                torch.save({'seq_model': seq_model.state_dict(), 'opt':optimizer.state_dict()}, args.checkpoint)
         elif dev_f1 > best_f1:
+            test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
 
-
-            tmptest_f1, tmptest_pre, tmptest_rec, tmptest_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
-            
-            print('nonezero: %.d tot_loss: %.4f dev_f1: %.4f dev_rec: %.4f dev_pre: %.4f dev_acc: %.4f tmptest_f1: %.4f tmptest_rec: %.4f tmptest_pre: %.4f tmptest_acc: %.4f' % (tmp_nonezero_count, tot_loss/(normalizer+0.001), dev_f1, dev_rec, dev_pre, dev_acc, tmptest_f1, tmptest_rec, tmptest_pre, tmptest_acc))
-
-            if args.use_writer:
-                writer.add_scalar(tf1, tmptest_f1, indexs)
+            tbw.add_loss_vs_batch({'tot_loss': tot_loss/(normalizer+1e-9), 'test_f1': test_f1}, batch_index, add_log = True)
+            tbw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, batch_index, add_log = False)
 
         else:
-            print('nonezero: %.d tot_loss: %.4f dev_f1: %.4f dev_rec: %.4f dev_pre: %.4f dev_acc: %.4f' % (tmp_nonezero_count, tot_loss/(normalizer+0.0001), dev_f1, dev_rec, dev_pre, dev_acc))
             patience_count += 1
             if patience_count >= args.patience:
                 break
 
-    writer.close()
-    print('nonezero: %.d  dev_f1: %.4f dev_rec: %.4f dev_pre: %.4f dev_acc: %.4f test_f1: %.4f test_rec: %.4f test_pre: %.4f test_acc: %.4f\n' % (nonezero_count, best_f1, best_dev_rec, best_dev_pre, best_dev_acc, test_f1, test_rec, test_pre, test_acc))
+    tbw.close()
+
+    tbw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_test_pre': test_pre, 'best_test_rec': test_rec}, 0, add_log = True, add_writer = False)
+    tbw.add_loss_vs_batch({'best_dev_f1': best_f1, 'best_dev_pre': best_dev_pre, 'best_dev_rec': best_dev_rec}, 0, add_log = True, add_writer = False)
 
     if args.pruned_output:
 
-        print('loading best_performing_model...')
-        seq_file = torch.load(args.checkpoint, map_location=lambda storage, loc: storage)['seq_model']
-        seq_model.load_state_dict(seq_file)
+        logger.info('Loading best_performing_model.')
+        seq_param = wrapper.restore_best_checkpoint(tbw.path)['model']
+        seq_model.load_state_dict(seq_param)
         seq_model.cuda()
 
+        logger.info('Test before deleting layers.')
         test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
         dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
 
-        print('dev_f1: %.4f dev_rec: %.4f dev_pre: %.4f dev_acc: %.4f test_f1: %.4f test_rec: %.4f test_pre: %.4f test_acc: %.4f\n' % (dev_f1, dev_rec, dev_pre, dev_acc, test_f1, test_rec, test_pre, test_acc))
+        tbw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_dev_f1': dev_f1}, 1, add_log = True, add_writer = False)
 
-        print('pruning...')
+        logger.info('Deleting layers.')
         seq_model.cpu()
         seq_model.prune_dense_rnn()
         seq_model.cuda()
-        
-        print('pruned results:')
+
+        logger.info('Resulting models display.')
         print(seq_model)
 
+        logger.info('Test after deleting layers.')
         test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
         dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
 
-        print('dev_f1: %.4f dev_rec: %.4f dev_pre: %.4f dev_acc: %.4f test_f1: %.4f test_rec: %.4f test_pre: %.4f test_acc: %.4f\n' % (dev_f1, dev_rec, dev_pre, dev_acc, test_f1, test_rec, test_pre, test_acc))
+        tbw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_dev_f1': dev_f1}, 2, add_log = True, add_writer = False)
 
-        print('saving model...')
         seq_model.cpu()
-        torch.save(seq_model, args.pruned_output)
+        tbw.info('Saveing model...')
+        tbw.save_checkpoint(model = seq_model, is_best = True)

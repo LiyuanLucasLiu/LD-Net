@@ -30,11 +30,12 @@ Details about LD-Net can be accessed at: https://arxiv.org/abs/1804.07827.
 
 ### Dependency
 
+tensorboard wrapper
+
 ```
 numpy==1.13.1
 tqdm
 pytorch==0.4.1
-tensorboardX
 ```
 
 ### Data

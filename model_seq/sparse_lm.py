@@ -148,7 +148,7 @@ class SDRNN(nn.Module):
 
         return prune_mask
 
-    def prox(self, lambda0, lambda1):
+    def prox(self):
         """
         the proximal calculator.
         """
@@ -252,11 +252,11 @@ class SparseSeqLM(nn.Module):
         """
         return self.rnn.regularizer(lambda1)
 
-    def prox(self, lambda0, lambda1):
+    def prox(self):
         """
         the proximal calculator.
         """
-        return self.rnn.prox(lambda0, lambda1)
+        return self.rnn.prox()
 
     def forward(self, w_in, ind=None):
         """

@@ -31,8 +31,6 @@ import sys
 import itertools
 import functools
 
-from ipdb import set_trace
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     
@@ -50,7 +48,7 @@ if __name__ == "__main__":
     parser.add_argument('--lm_layer_num', type=int, default=10)
     parser.add_argument('--lm_droprate', type=float, default=0.5)
     parser.add_argument('--lm_rnn_layer', choices=['Basic', 'DenseNet', 'LDNet'], default='LDNet')
-    parser.add_argument('--lm_rnn_unit', choices=['gru', 'lstm', 'rnn', 'bnlstm'], default='lstm')
+    parser.add_argument('--lm_rnn_unit', choices=['gru', 'lstm', 'rnn'], default='lstm')
 
     parser.add_argument('--seq_c_dim', type=int, default=30)
     parser.add_argument('--seq_c_hid', type=int, default=150)
@@ -65,13 +63,14 @@ if __name__ == "__main__":
     parser.add_argument('--seq_lambda1', type=float, default=3)
     parser.add_argument('--fix_rate', action='store_true')
 
-    parser.add_argument('--update', choices=['Adam', 'Adagrad', 'Adadelta', 'SGD'], default='SGD')
     parser.add_argument('--batch_size', type=int, default=10)
     parser.add_argument('--patience', type=int, default=5)
     parser.add_argument('--epoch', type=int, default=100)
+    parser.add_argument('--least', type=int, default=50)
     parser.add_argument('--clip', type=float, default=5)
     parser.add_argument('--lr', type=float, default=0.015)
     parser.add_argument('--lr_decay', type=float, default=0.05)
+    parser.add_argument('--update', choices=['Adam', 'Adagrad', 'Adadelta', 'SGD'], default='SGD')
     args = parser.parse_args()
 
     tbw = wrapper(os.path.join(args.cp_root, args.checkpoint_name), args.checkpoint_name, enable_git_track=args.git_tracking)
@@ -101,7 +100,7 @@ if __name__ == "__main__":
 
     logger.info('Loading pre-trained models from {}.'.format(args.load_seq))
 
-    seq_file = torch.load(args.load_seq, map_location=lambda storage, loc: storage)['seq_model']
+    seq_file = wrapper.restore_checkpoint(args.load_seq)['model']
     seq_model.load_state_dict(seq_file)
     seq_model.to(device)
     crit = CRFLoss(y_map)
@@ -126,7 +125,6 @@ if __name__ == "__main__":
 
     logger.info('Setting up training environ.')
     best_f1 = float('-inf')
-    current_lr = args.lr
     patience_count = 0
     batch_index = 0
     normalizer = 0
@@ -148,8 +146,8 @@ if __name__ == "__main__":
             normalizer += 1
 
             if args.seq_lambda0 > 0:
-                f_reg0, f_reg1, f_reg3 = flm_model_seq.regularizer(args.seq_lambda1)
-                b_reg0, b_reg1, b_reg3 = blm_model_seq.regularizer(args.seq_lambda1)
+                f_reg0, f_reg1, f_reg3 = flm_model_seq.regularizer()
+                b_reg0, b_reg1, b_reg3 = blm_model_seq.regularizer()
 
                 loss += args.seq_lambda0 * (f_reg3 + b_reg3)
 
@@ -160,48 +158,40 @@ if __name__ == "__main__":
             torch.nn.utils.clip_grad_norm_(seq_model.parameters(), args.clip)
             optimizer.step()
 
-            if 0 == (batch_index + 1) % 100:
+            batch_index += 1
+            if 0 == batch_index % 100:
                 tbw.add_loss_vs_batch({'training_loss': tot_loss / (normalizer + 1e-9)}, batch_index, add_log = False)
                 tot_loss = 0
                 normalizer = 0
-        
-            batch_index += 1
 
-        current_lr = args.lr / (1 + (indexs + 1) * args.lr_decay)
-        utils.adjust_learning_rate(optimizer, current_lr)
+        if args.lr > 0:
+            current_lr = args.lr / (1 + (indexs + 1) * args.lr_decay)
+            utils.adjust_learning_rate(optimizer, current_lr)
 
         dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
         nonezero_count = (flm_model_seq.rnn.weight_list.data > 0).int().cpu().sum() + (blm_model_seq.rnn.weight_list.data > 0).cpu().int().sum()
 
-        tbw.add_loss_vs_batch({'dev_f1': dev_f1, 'none_zero_count': nonezero_count}, batch_index, add_log = True)
-        tbw.add_loss_vs_batch({'dev_pre': dev_pre, 'dev_rec': dev_rec}, batch_index, add_log = False)
+        tbw.add_loss_vs_batch({'dev_f1': dev_f1, 'none_zero_count': nonezero_count}, indexs, add_log = True)
+        tbw.add_loss_vs_batch({'dev_pre': dev_pre, 'dev_rec': dev_rec}, indexs, add_log = False)
 
         tbw.info('Saveing model...')
         tbw.save_checkpoint(model = seq_model, is_best = (nonezero_count <= args.seq_lambda1 and dev_f1 > best_f1))
 
         if nonezero_count <= args.seq_lambda1 and dev_f1 > best_f1:
             nonezero_count = nonezero_count
-
             test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
             best_f1, best_dev_pre, best_dev_rec, best_dev_acc = dev_f1, dev_pre, dev_rec, dev_acc
-
-            tbw.add_loss_vs_batch({'tot_loss': tot_loss/(normalizer+1e-9), 'test_f1': test_f1}, batch_index, add_log = True)
-            tbw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, batch_index, add_log = False)
-
+            tbw.add_loss_vs_batch({'tot_loss': tot_loss/(normalizer+1e-9), 'test_f1': test_f1}, indexs, add_log = True)
+            tbw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, add_log = False)
             patience_count = 0
-
         elif dev_f1 > best_f1:
             test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
-
-            tbw.add_loss_vs_batch({'tot_loss': tot_loss/(normalizer+1e-9), 'test_f1': test_f1}, batch_index, add_log = True)
-            tbw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, batch_index, add_log = False)
-
+            tbw.add_loss_vs_batch({'tot_loss': tot_loss/(normalizer+1e-9), 'test_f1': test_f1}, indexs, add_log = True)
+            tbw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, add_log = False)
         else:
             patience_count += 1
-            if patience_count >= args.patience:
+            if patience_count >= args.patience and indexs >= args.least:
                 break
-
-    tbw.close()
 
     tbw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_test_pre': test_pre, 'best_test_rec': test_rec}, 0, add_log = True, add_writer = False)
     tbw.add_loss_vs_batch({'best_dev_f1': best_f1, 'best_dev_pre': best_dev_pre, 'best_dev_rec': best_dev_rec}, 0, add_log = True, add_writer = False)
@@ -236,3 +226,5 @@ if __name__ == "__main__":
         seq_model.cpu()
         tbw.info('Saveing model...')
         tbw.save_checkpoint(model = seq_model, is_best = True)
+
+    tbw.close()

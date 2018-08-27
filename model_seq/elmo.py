@@ -90,7 +90,7 @@ class ERNN(nn.Module):
 
         self.output_dim = self.layer_list[-1].output_dim
 
-    def regularizer(self, lambda1):
+    def regularizer(self):
         """
         Calculate the regularization term.
 
@@ -158,7 +158,7 @@ class ElmoLM(nn.Module):
         """
         return
 
-    def regularizer(self, lambda1):
+    def regularizer(self):
         """
         Calculate the regularization term.
 
@@ -167,9 +167,9 @@ class ElmoLM(nn.Module):
         reg: ``list``.
             The list of regularization terms.
         """
-        return self.rnn.regularizer(lambda1)
+        return self.rnn.regularizer()
 
-    def prox(self, lambda0, lambda1):
+    def prox(self, lambda0):
         """
         the proximal calculator.
         """

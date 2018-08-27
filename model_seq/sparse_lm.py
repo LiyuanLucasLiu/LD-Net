@@ -157,7 +157,7 @@ class SDRNN(nn.Module):
         none_zero_count = (self.weight_list.data > 0).sum()
         return none_zero_count
 
-    def regularizer(self, lambda1):
+    def regularizer(self):
         """
         Calculate the regularization term.
 
@@ -241,7 +241,7 @@ class SparseSeqLM(nn.Module):
         """
         return
 
-    def regularizer(self, lambda1):
+    def regularizer(self):
         """
         Calculate the regularization term.
 
@@ -250,7 +250,7 @@ class SparseSeqLM(nn.Module):
         reg: ``list``.
             The list of regularization terms.
         """
-        return self.rnn.regularizer(lambda1)
+        return self.rnn.regularizer()
 
     def prox(self):
         """

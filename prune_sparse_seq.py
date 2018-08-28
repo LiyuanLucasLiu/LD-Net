@@ -61,7 +61,6 @@ if __name__ == "__main__":
     parser.add_argument('--seq_model', choices=['vanilla', 'lm-aug'], default='lm-aug')
     parser.add_argument('--seq_lambda0', type=float, default=0.05)
     parser.add_argument('--seq_lambda1', type=float, default=3)
-    parser.add_argument('--fix_rate', action='store_true')
 
     parser.add_argument('--batch_size', type=int, default=10)
     parser.add_argument('--patience', type=int, default=5)
@@ -93,8 +92,8 @@ if __name__ == "__main__":
     blm_rnn_layer = rnn_map[args.lm_rnn_layer](args.lm_layer_num, args.lm_rnn_unit, args.lm_word_dim, args.lm_hid_dim, args.lm_droprate)
     flm_model = LM(flm_rnn_layer, None, len(flm_map), args.lm_word_dim, args.lm_droprate, label_dim = args.lm_label_dim)
     blm_model = LM(blm_rnn_layer, None, len(blm_map), args.lm_word_dim, args.lm_droprate, label_dim = args.lm_label_dim)
-    flm_model_seq = SparseSeqLM(flm_model, False, args.lm_droprate, args.fix_rate)
-    blm_model_seq = SparseSeqLM(blm_model, True, args.lm_droprate, args.fix_rate)
+    flm_model_seq = SparseSeqLM(flm_model, False, args.lm_droprate, False)
+    blm_model_seq = SparseSeqLM(blm_model, True, args.lm_droprate, False)
     SL_map = {'vanilla':Vanilla_SeqLabel, 'lm-aug': SeqLabel}
     seq_model = SL_map[args.seq_model](flm_model_seq, blm_model_seq, len(c_map), args.seq_c_dim, args.seq_c_hid, args.seq_c_layer, len(gw_map), args.seq_w_dim, args.seq_w_hid, args.seq_w_layer, len(y_map), args.seq_droprate, unit=args.seq_rnn_unit)
 

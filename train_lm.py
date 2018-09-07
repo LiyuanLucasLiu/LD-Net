@@ -17,7 +17,7 @@ from model_word_ada.dataset import LargeDataset, EvalDataset
 from model_word_ada.adaptive import AdaptiveSoftmax
 import model_word_ada.utils as utils
 
-import tbwrapper.wrapper as wrapper
+import pyscope.wrapper as wrapper
 
 import argparse
 import json
@@ -76,20 +76,19 @@ if __name__ == "__main__":
     parser.add_argument('--patience', type=float, default=10)
     args = parser.parse_args()
 
-    tbw = wrapper(os.path.join(args.cp_root, args.checkpoint_name), args.checkpoint_name, enable_git_track=args.git_tracking)
-    tbw.set_level('info')
-    logger = tbw.get_logger()
+    pw = wrapper(os.path.join(args.cp_root, args.checkpoint_name), args.checkpoint_name, enable_git_track=args.git_tracking)
+    pw.set_level('info')
 
-    gpu_index = tbw.auto_device() if 'auto' == args.gpu else int(args.gpu)
+    gpu_index = pw.auto_device() if 'auto' == args.gpu else int(args.gpu)
     device = torch.device("cuda:" + str(gpu_index) if gpu_index >= 0 else "cpu")
 
-    tbw.info('Loading dataset.')
+    pw.info('Loading dataset.')
     dataset = pickle.load(open(args.dataset_folder + 'test.pk', 'rb'))
     w_map, test_data, range_idx = dataset['w_map'], dataset['test_data'], dataset['range']
     train_loader = LargeDataset(args.dataset_folder, range_idx, args.batch_size, args.sequence_length)
     test_loader = EvalDataset(test_data, args.batch_size)
 
-    tbw.info('Building models.')
+    pw.info('Building models.')
     rnn_map = {'Basic': BasicRNN, 'DDNet': DDRNN, 'DenseNet': DenseRNN, 'LDNet': functools.partial(LDRNN, layer_drop = args.layer_drop)}
     rnn_layer = rnn_map[args.rnn_layer](args.layer_num, args.rnn_unit, args.word_dim, args.hid_dim, args.droprate)
     cut_off = args.cut_off + [len(w_map) + 1]
@@ -100,7 +99,7 @@ if __name__ == "__main__":
     lm_model = LM(rnn_layer, soft_max, len(w_map), args.word_dim, args.droprate, label_dim = args.label_dim, add_relu=args.add_relu)
     lm_model.rand_ini()
 
-    tbw.info('Building optimizer.')
+    pw.info('Building optimizer.')
     optim_map = {'Adam' : optim.Adam, 'Adagrad': optim.Adagrad, 'Adadelta': optim.Adadelta}
     if args.lr > 0:
         optimizer=optim_map[args.update](lm_model.parameters(), lr=args.lr)
@@ -109,17 +108,17 @@ if __name__ == "__main__":
 
     if args.load_checkpoint:
         if os.path.isfile(args.load_checkpoint):
-            tbw.info("loading checkpoint: '{}'".format(args.load_checkpoint))
+            pw.info("loading checkpoint: '{}'".format(args.load_checkpoint))
             model_file = wrapper.restore_checkpoint(args.load_checkpoint)['model']
             lm_model.load_state_dict(model_file, False)
         else:
-            tbw.info("no checkpoint found at: '{}'".format(args.load_checkpoint))
+            pw.info("no checkpoint found at: '{}'".format(args.load_checkpoint))
     lm_model.to(device)
 
-    logger.info('Saving configues.')
-    tbw.save_configue(args)
+    pw.info('Saving configues.')
+    pw.save_configue(args)
 
-    logger.info('Setting up training environ.')
+    pw.info('Setting up training environ.')
     best_train_ppl = float('inf')
     cur_lr = args.lr
     batch_index = 0
@@ -152,12 +151,12 @@ if __name__ == "__main__":
                 batch_index += 1
                 if 0 == batch_index % args.interval:
                     s_loss = utils.to_scalar(loss)
-                    tbw.add_loss_vs_batch({'batch_loss': s_loss}, batch_index, add_log = False)
+                    pw.add_loss_vs_batch({'batch_loss': s_loss}, batch_index, add_log = False)
                                 
                 epoch_loss += utils.to_scalar(loss)
                 if 0 == batch_index % args.epoch_size:
                     epoch_ppl = math.exp(epoch_loss / args.epoch_size)
-                    tbw.add_loss_vs_batch({'train_ppl': epoch_ppl}, batch_index, add_log = True)
+                    pw.add_loss_vs_batch({'train_ppl': epoch_ppl}, batch_index, add_log = True)
                     if epoch_loss < best_train_ppl:
                         best_train_ppl = epoch_loss
                         patience = 0
@@ -169,18 +168,18 @@ if __name__ == "__main__":
                     patience = 0
                     cur_lr *= args.lr_decay
                     best_train_ppl = float('inf')
-                    logger.info('adjust_learning_rate...')
+                    pw.info('adjust_learning_rate...')
                     utils.adjust_learning_rate(optimizer, cur_lr)
 
             test_ppl = evaluate(test_loader.get_tqdm(device), lm_model)
-            tbw.add_loss_vs_batch({'test_ppl': test_ppl}, indexs, add_log = True)
-            tbw.save_checkpoint(model = lm_model, optimizer = optimizer, is_best = True)
+            pw.add_loss_vs_batch({'test_ppl': test_ppl}, indexs, add_log = True)
+            pw.save_checkpoint(model = lm_model, optimizer = optimizer, is_best = True)
 
     except KeyboardInterrupt:
 
-        logger.info('Exiting from training early')
+        pw.info('Exiting from training early')
         test_ppl = evaluate(test_loader.get_tqdm(device), lm_model)
-        tbw.add_loss_vs_batch({'test_ppl': test_ppl}, indexs, add_log = True)
-        tbw.save_checkpoint(model = lm_model, optimizer = optimizer, is_best = True)
+        pw.add_loss_vs_batch({'test_ppl': test_ppl}, indexs, add_log = True)
+        pw.save_checkpoint(model = lm_model, optimizer = optimizer, is_best = True)
 
-    tbw.close()
+    pw.close()

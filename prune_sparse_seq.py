@@ -22,7 +22,7 @@ from model_seq.seqlm import BasicSeqLM
 from model_seq.sparse_lm import SparseSeqLM
 import model_seq.utils as utils
 
-import tbwrapper.wrapper as wrapper
+import pyscope.wrapper as wrapper
 
 import argparse
 import json
@@ -40,7 +40,7 @@ if __name__ == "__main__":
     parser.add_argument('--git_tracking', action='store_true')
 
     parser.add_argument('--corpus', default='../DDCLM/data/ner_dataset.pk')
-    parser.add_argument('--load_seq', default='../DDCLM/cp/ner/nld4.model')
+    parser.add_argument('--load_seq', default='./checkpoint/nld.model')
 
     parser.add_argument('--lm_hid_dim', type=int, default=300)
     parser.add_argument('--lm_word_dim', type=int, default=300)
@@ -72,20 +72,19 @@ if __name__ == "__main__":
     parser.add_argument('--update', choices=['Adam', 'Adagrad', 'Adadelta', 'SGD'], default='SGD')
     args = parser.parse_args()
 
-    tbw = wrapper(os.path.join(args.cp_root, args.checkpoint_name), args.checkpoint_name, enable_git_track=args.git_tracking)
-    tbw.set_level('info')
-    logger = tbw.get_logger()
+    pw = wrapper(os.path.join(args.cp_root, args.checkpoint_name), args.checkpoint_name, enable_git_track=args.git_tracking)
+    pw.set_level('info')
 
-    gpu_index = tbw.auto_device() if 'auto' == args.gpu else int(args.gpu)
+    gpu_index = pw.auto_device() if 'auto' == args.gpu else int(args.gpu)
     device = torch.device("cuda:" + str(gpu_index) if gpu_index >= 0 else "cpu")
 
-    logger.info('Loading data from {}.'.format(args.corpus))
+    pw.info('Loading data from {}.'.format(args.corpus))
 
     dataset = pickle.load(open(args.corpus, 'rb'))
     name_list = ['flm_map', 'blm_map', 'gw_map', 'c_map', 'y_map', 'emb_array', 'train_data', 'test_data', 'dev_data']
     flm_map, blm_map, gw_map, c_map, y_map, emb_array, train_data, test_data, dev_data = [dataset[tup] for tup in name_list ]
 
-    logger.info('Building language models and seuqence labeling models.')
+    pw.info('Building language models and seuqence labeling models.')
 
     rnn_map = {'Basic': BasicRNN, 'DenseNet': DenseRNN, 'LDNet': functools.partial(LDRNN, layer_drop = 0)}
     flm_rnn_layer = rnn_map[args.lm_rnn_layer](args.lm_layer_num, args.lm_rnn_unit, args.lm_word_dim, args.lm_hid_dim, args.lm_droprate)
@@ -97,7 +96,7 @@ if __name__ == "__main__":
     SL_map = {'vanilla':Vanilla_SeqLabel, 'lm-aug': SeqLabel}
     seq_model = SL_map[args.seq_model](flm_model_seq, blm_model_seq, len(c_map), args.seq_c_dim, args.seq_c_hid, args.seq_c_layer, len(gw_map), args.seq_w_dim, args.seq_w_hid, args.seq_w_layer, len(y_map), args.seq_droprate, unit=args.seq_rnn_unit)
 
-    logger.info('Loading pre-trained models from {}.'.format(args.load_seq))
+    pw.info('Loading pre-trained models from {}.'.format(args.load_seq))
 
     seq_file = wrapper.restore_checkpoint(args.load_seq)['model']
     seq_model.load_state_dict(seq_file)
@@ -106,11 +105,11 @@ if __name__ == "__main__":
     decoder = CRFDecode(y_map)
     evaluator = eval_wc(decoder, 'f1')
 
-    logger.info('Constructing dataset.')
+    pw.info('Constructing dataset.')
 
     train_dataset, test_dataset, dev_dataset = [SeqDataset(tup_data, flm_map['\n'], blm_map['\n'], gw_map['<\n>'], c_map[' '], c_map['\n'], y_map['<s>'], y_map['<eof>'], len(y_map), args.batch_size) for tup_data in [train_data, test_data, dev_data]]
 
-    logger.info('Constructing optimizer.')
+    pw.info('Constructing optimizer.')
 
     param_dict = filter(lambda t: t.requires_grad, seq_model.parameters())
     optim_map = {'Adam' : optim.Adam, 'Adagrad': optim.Adagrad, 'Adadelta': optim.Adadelta, 'SGD': functools.partial(optim.SGD, momentum=0.9)}
@@ -119,18 +118,25 @@ if __name__ == "__main__":
     else:
         optimizer=optim_map[args.update](param_dict)
 
-    logger.info('Saving configues.')
-    tbw.save_configue(args)
+    pw.info('Saving configues.')
+    pw.save_configue(args)
 
-    logger.info('Setting up training environ.')
+    pw.info('Setting up training environ.')
     best_f1 = float('-inf')
     patience_count = 0
     batch_index = 0
     normalizer = 0
     tot_loss = 0
 
-    logger.info('Start training...')
+    dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
+    print(dev_f1)
+    
+    pw.info('Start training...')
     for indexs in range(args.epoch):
+
+        pw.info('############')
+        pw.info('Epoch: {}'.format(indexs))
+        pw.nvidia_memory_map()
 
         iterator = train_dataset.get_tqdm(device)
 
@@ -159,7 +165,7 @@ if __name__ == "__main__":
 
             batch_index += 1
             if 0 == batch_index % 100:
-                tbw.add_loss_vs_batch({'training_loss': tot_loss / (normalizer + 1e-9)}, batch_index, add_log = False)
+                pw.add_loss_vs_batch({'training_loss': tot_loss / (normalizer + 1e-9)}, batch_index, add_log = False)
                 tot_loss = 0
                 normalizer = 0
 
@@ -170,60 +176,60 @@ if __name__ == "__main__":
         dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
         nonezero_count = (flm_model_seq.rnn.weight_list.data > 0).int().cpu().sum() + (blm_model_seq.rnn.weight_list.data > 0).cpu().int().sum()
 
-        tbw.add_loss_vs_batch({'dev_f1': dev_f1, 'none_zero_count': nonezero_count}, indexs, add_log = True)
-        tbw.add_loss_vs_batch({'dev_pre': dev_pre, 'dev_rec': dev_rec}, indexs, add_log = False)
+        pw.add_loss_vs_batch({'dev_f1': dev_f1, 'none_zero_count': nonezero_count.item()}, indexs, add_log = True)
+        pw.add_loss_vs_batch({'dev_pre': dev_pre, 'dev_rec': dev_rec}, indexs, add_log = False)
 
-        tbw.info('Saveing model...')
-        tbw.save_checkpoint(model = seq_model, is_best = (nonezero_count <= args.seq_lambda1 and dev_f1 > best_f1))
+        pw.info('Saveing model...')
+        pw.save_checkpoint(model = seq_model, is_best = (nonezero_count <= args.seq_lambda1 and dev_f1 > best_f1))
 
         if nonezero_count <= args.seq_lambda1 and dev_f1 > best_f1:
             nonezero_count = nonezero_count
             test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
             best_f1, best_dev_pre, best_dev_rec, best_dev_acc = dev_f1, dev_pre, dev_rec, dev_acc
-            tbw.add_loss_vs_batch({'tot_loss': tot_loss/(normalizer+1e-9), 'test_f1': test_f1}, indexs, add_log = True)
-            tbw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, add_log = False)
+            pw.add_loss_vs_batch({'tot_loss': tot_loss/(normalizer+1e-9), 'test_f1': test_f1}, indexs, add_log = True)
+            pw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, add_log = False)
             patience_count = 0
         elif dev_f1 > best_f1:
             test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
-            tbw.add_loss_vs_batch({'tot_loss': tot_loss/(normalizer+1e-9), 'test_f1': test_f1}, indexs, add_log = True)
-            tbw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, add_log = False)
+            pw.add_loss_vs_batch({'tot_loss': tot_loss/(normalizer+1e-9), 'test_f1': test_f1}, indexs, add_log = True)
+            pw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, add_log = False)
         else:
             patience_count += 1
             if patience_count >= args.patience and indexs >= args.least:
                 break
 
-    tbw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_test_pre': test_pre, 'best_test_rec': test_rec}, 0, add_log = True, add_writer = False)
-    tbw.add_loss_vs_batch({'best_dev_f1': best_f1, 'best_dev_pre': best_dev_pre, 'best_dev_rec': best_dev_rec}, 0, add_log = True, add_writer = False)
+    pw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_test_pre': test_pre, 'best_test_rec': test_rec}, 0, add_log = True, add_writer = False)
+    pw.add_loss_vs_batch({'best_dev_f1': best_f1, 'best_dev_pre': best_dev_pre, 'best_dev_rec': best_dev_rec}, 0, add_log = True, add_writer = False)
 
     if args.pruned_output:
 
-        logger.info('Loading best_performing_model.')
-        seq_param = wrapper.restore_best_checkpoint(tbw.path)['model']
+        pw.info('Loading best_performing_model.')
+        seq_param = wrapper.restore_best_checkpoint(pw.path)['model']
         seq_model.load_state_dict(seq_param)
         seq_model.cuda()
 
-        logger.info('Test before deleting layers.')
+        pw.info('Test before deleting layers.')
         test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
         dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
 
-        tbw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_dev_f1': dev_f1}, 1, add_log = True, add_writer = False)
+        pw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_dev_f1': dev_f1}, 1, add_log = True, add_writer = False)
 
-        logger.info('Deleting layers.')
+        pw.info('Deleting layers.')
         seq_model.cpu()
         seq_model.prune_dense_rnn()
         seq_model.cuda()
 
-        logger.info('Resulting models display.')
+        pw.info('Resulting models display.')
         print(seq_model)
 
-        logger.info('Test after deleting layers.')
+        pw.info('Test after deleting layers.')
         test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
         dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
 
-        tbw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_dev_f1': dev_f1}, 2, add_log = True, add_writer = False)
+        pw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_dev_f1': dev_f1}, 2, add_log = True, add_writer = False)
 
         seq_model.cpu()
-        tbw.info('Saveing model...')
-        tbw.save_checkpoint(model = seq_model, is_best = True)
+        pw.info('Saveing model...')
+        pw.save_checkpoint(model = seq_model, is_best = True)
 
-    tbw.close()
+    pw.close()

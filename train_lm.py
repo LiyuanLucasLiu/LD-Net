@@ -17,7 +17,7 @@ from model_word_ada.dataset import LargeDataset, EvalDataset
 from model_word_ada.adaptive import AdaptiveSoftmax
 import model_word_ada.utils as utils
 
-import pyscope.wrapper as wrapper
+import torch_scope.wrapper as wrapper
 
 import argparse
 import json
@@ -81,6 +81,8 @@ if __name__ == "__main__":
 
     gpu_index = pw.auto_device() if 'auto' == args.gpu else int(args.gpu)
     device = torch.device("cuda:" + str(gpu_index) if gpu_index >= 0 else "cpu")
+    if gpu_index >= 0:
+        torch.cuda.set_device(gpu_index)
 
     pw.info('Loading dataset.')
     dataset = pickle.load(open(args.dataset_folder + 'test.pk', 'rb'))
@@ -131,6 +133,10 @@ if __name__ == "__main__":
 
     try:
         for indexs in range(args.epoch):
+    
+            pw.info('############')
+            pw.info('Epoch: {}'.format(indexs))
+            pw.nvidia_memory_map()
 
             lm_model.train()
 
@@ -151,12 +157,12 @@ if __name__ == "__main__":
                 batch_index += 1
                 if 0 == batch_index % args.interval:
                     s_loss = utils.to_scalar(loss)
-                    pw.add_loss_vs_batch({'batch_loss': s_loss}, batch_index, add_log = False)
+                    pw.add_loss_vs_batch({'batch_loss': s_loss}, batch_index, use_logger = False)
                                 
                 epoch_loss += utils.to_scalar(loss)
                 if 0 == batch_index % args.epoch_size:
                     epoch_ppl = math.exp(epoch_loss / args.epoch_size)
-                    pw.add_loss_vs_batch({'train_ppl': epoch_ppl}, batch_index, add_log = True)
+                    pw.add_loss_vs_batch({'train_ppl': epoch_ppl}, batch_index, use_logger = True)
                     if epoch_loss < best_train_ppl:
                         best_train_ppl = epoch_loss
                         patience = 0
@@ -172,14 +178,14 @@ if __name__ == "__main__":
                     utils.adjust_learning_rate(optimizer, cur_lr)
 
             test_ppl = evaluate(test_loader.get_tqdm(device), lm_model)
-            pw.add_loss_vs_batch({'test_ppl': test_ppl}, indexs, add_log = True)
+            pw.add_loss_vs_batch({'test_ppl': test_ppl}, indexs, use_logger = True)
             pw.save_checkpoint(model = lm_model, optimizer = optimizer, is_best = True)
 
     except KeyboardInterrupt:
 
         pw.info('Exiting from training early')
         test_ppl = evaluate(test_loader.get_tqdm(device), lm_model)
-        pw.add_loss_vs_batch({'test_ppl': test_ppl}, indexs, add_log = True)
+        pw.add_loss_vs_batch({'test_ppl': test_ppl}, indexs, use_logger = True)
         pw.save_checkpoint(model = lm_model, optimizer = optimizer, is_best = True)
 
     pw.close()

@@ -35,6 +35,7 @@ tensorboard wrapper
 ```
 numpy==1.13.1
 tqdm
+torch-scope
 pytorch==0.4.1
 ```
 
@@ -43,3 +44,4 @@ pytorch==0.4.1
 ### Model
 
 ### Command 
+

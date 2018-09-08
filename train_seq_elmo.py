@@ -22,7 +22,7 @@ from model_seq.seqlm import BasicSeqLM
 from model_seq.elmo import ElmoLM
 import model_seq.utils as utils
 
-import pyscope.wrapper as wrapper
+import torch_scope.wrapper as wrapper
 
 import argparse
 import json
@@ -38,7 +38,6 @@ if __name__ == "__main__":
     parser.add_argument('--cp_root', default='./checkpoint')
     parser.add_argument('--checkpoint_name', default='elmo0')
     parser.add_argument('--git_tracking', action='store_true')
-    parser.add_argument('--save_checkpoint', action='store_true')
 
     parser.add_argument('--corpus', default='./data/ner_dataset.pk')
     parser.add_argument('--forward_lm', default='./checkpoint/basic_3.model')
@@ -77,6 +76,8 @@ if __name__ == "__main__":
 
     gpu_index = pw.auto_device() if 'auto' == args.gpu else int(args.gpu)
     device = torch.device("cuda:" + str(gpu_index) if gpu_index >= 0 else "cpu")
+    if gpu_index >= 0:
+        torch.cuda.set_device(gpu_index)
 
     pw.info('Loading data')
 
@@ -122,6 +123,10 @@ if __name__ == "__main__":
     else:
         optimizer=optim_map[args.update](param_dict)
     
+    pw.info('Saving configues.')
+
+    pw.save_configue(args)
+
     pw.info('Setting up training environ.')
 
     best_f1 = float('-inf')
@@ -131,6 +136,10 @@ if __name__ == "__main__":
     tot_loss = 0
 
     for indexs in range(args.epoch):
+
+        pw.info('############')
+        pw.info('Epoch: {}'.format(indexs))
+        pw.nvidia_memory_map()
 
         seq_model.train()
         for f_c, f_p, b_c, b_p, flm_w, blm_w, blm_ind, f_w, f_y, f_y_m, _ in iterator = train_dataset.get_tqdm(device):
@@ -152,7 +161,7 @@ if __name__ == "__main__":
             batch_index += 1
 
             if 0 == batch_index % 100:
-                pw.add_loss_vs_batch({'training_loss': tot_loss / (normalizer + 1e-9)}, batch_index, add_log = False)
+                pw.add_loss_vs_batch({'training_loss': tot_loss / (normalizer + 1e-9)}, batch_index, use_logger = False)
                 tot_loss = 0
                 normalizer = 0
 
@@ -162,17 +171,17 @@ if __name__ == "__main__":
 
         dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
 
-        pw.add_loss_vs_batch({'dev_f1': dev_f1}, indexs, add_log = True)
-        pw.add_loss_vs_batch({'dev_pre': dev_pre, 'dev_rec': dev_rec}, indexs, add_log = False)
+        pw.add_loss_vs_batch({'dev_f1': dev_f1}, indexs, use_logger = True)
+        pw.add_loss_vs_batch({'dev_pre': dev_pre, 'dev_rec': dev_rec}, indexs, use_logger = False)
         
-        pw.info('Saveing model...')
+        pw.info('Saving model...')
         pw.save_checkpoint(model = seq_model, is_best = (dev_f1 > best_f1))
 
         if dev_f1 > best_f1:
             test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
             best_f1, best_dev_pre, best_dev_rec, best_dev_acc = dev_f1, dev_pre, dev_rec, dev_acc
-            pw.add_loss_vs_batch({'test_f1': test_f1}, indexs, add_log = True)
-            pw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, add_log = False)
+            pw.add_loss_vs_batch({'test_f1': test_f1}, indexs, use_logger = True)
+            pw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, use_logger = False)
             patience_count = 0
         else:
             patience_count += 1

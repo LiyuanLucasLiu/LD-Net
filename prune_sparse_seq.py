@@ -22,7 +22,7 @@ from model_seq.seqlm import BasicSeqLM
 from model_seq.sparse_lm import SparseSeqLM
 import model_seq.utils as utils
 
-import pyscope.wrapper as wrapper
+import torch_scope.wrapper as wrapper
 
 import argparse
 import json
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     parser.add_argument('--seq_rnn_unit', choices=['gru', 'lstm', 'rnn'], default='lstm')
     parser.add_argument('--seq_model', choices=['vanilla', 'lm-aug'], default='lm-aug')
     parser.add_argument('--seq_lambda0', type=float, default=0.05)
-    parser.add_argument('--seq_lambda1', type=float, default=3)
+    parser.add_argument('--seq_lambda1', type=float, default=2)
 
     parser.add_argument('--batch_size', type=int, default=10)
     parser.add_argument('--patience', type=int, default=5)
@@ -74,9 +74,11 @@ if __name__ == "__main__":
 
     pw = wrapper(os.path.join(args.cp_root, args.checkpoint_name), args.checkpoint_name, enable_git_track=args.git_tracking)
     pw.set_level('info')
-
+    
     gpu_index = pw.auto_device() if 'auto' == args.gpu else int(args.gpu)
     device = torch.device("cuda:" + str(gpu_index) if gpu_index >= 0 else "cpu")
+    if gpu_index >= 0:
+        torch.cuda.set_device(gpu_index)
 
     pw.info('Loading data from {}.'.format(args.corpus))
 
@@ -119,9 +121,11 @@ if __name__ == "__main__":
         optimizer=optim_map[args.update](param_dict)
 
     pw.info('Saving configues.')
+
     pw.save_configue(args)
 
     pw.info('Setting up training environ.')
+
     best_f1 = float('-inf')
     patience_count = 0
     batch_index = 0
@@ -132,6 +136,7 @@ if __name__ == "__main__":
     print(dev_f1)
     
     pw.info('Start training...')
+
     for indexs in range(args.epoch):
 
         pw.info('############')
@@ -163,9 +168,12 @@ if __name__ == "__main__":
             torch.nn.utils.clip_grad_norm_(seq_model.parameters(), args.clip)
             optimizer.step()
 
+            flm_model_seq.prox()
+            blm_model_seq.prox()
+
             batch_index += 1
             if 0 == batch_index % 100:
-                pw.add_loss_vs_batch({'training_loss': tot_loss / (normalizer + 1e-9)}, batch_index, add_log = False)
+                pw.add_loss_vs_batch({'training_loss': tot_loss / (normalizer + 1e-9)}, batch_index, use_logger = False)
                 tot_loss = 0
                 normalizer = 0
 
@@ -176,60 +184,58 @@ if __name__ == "__main__":
         dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
         nonezero_count = (flm_model_seq.rnn.weight_list.data > 0).int().cpu().sum() + (blm_model_seq.rnn.weight_list.data > 0).cpu().int().sum()
 
-        pw.add_loss_vs_batch({'dev_f1': dev_f1, 'none_zero_count': nonezero_count.item()}, indexs, add_log = True)
-        pw.add_loss_vs_batch({'dev_pre': dev_pre, 'dev_rec': dev_rec}, indexs, add_log = False)
+        pw.add_loss_vs_batch({'dev_f1': dev_f1, 'none_zero_count': nonezero_count.item()}, indexs, use_logger = True)
+        pw.add_loss_vs_batch({'dev_pre': dev_pre, 'dev_rec': dev_rec}, indexs, use_logger = False)
 
-        pw.info('Saveing model...')
+        pw.info('Saving model...')
         pw.save_checkpoint(model = seq_model, is_best = (nonezero_count <= args.seq_lambda1 and dev_f1 > best_f1))
 
         if nonezero_count <= args.seq_lambda1 and dev_f1 > best_f1:
             nonezero_count = nonezero_count
             test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
             best_f1, best_dev_pre, best_dev_rec, best_dev_acc = dev_f1, dev_pre, dev_rec, dev_acc
-            pw.add_loss_vs_batch({'tot_loss': tot_loss/(normalizer+1e-9), 'test_f1': test_f1}, indexs, add_log = True)
-            pw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, add_log = False)
+            pw.add_loss_vs_batch({'tot_loss': tot_loss/(normalizer+1e-9), 'test_f1': test_f1}, indexs, use_logger = True)
+            pw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, use_logger = False)
             patience_count = 0
         elif dev_f1 > best_f1:
             test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
-            pw.add_loss_vs_batch({'tot_loss': tot_loss/(normalizer+1e-9), 'test_f1': test_f1}, indexs, add_log = True)
-            pw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, add_log = False)
+            pw.add_loss_vs_batch({'tot_loss': tot_loss/(normalizer+1e-9), 'test_f1': test_f1}, indexs, use_logger = True)
+            pw.add_loss_vs_batch({'test_pre': test_pre, 'test_rec': test_rec}, indexs, use_logger = False)
         else:
             patience_count += 1
             if patience_count >= args.patience and indexs >= args.least:
                 break
 
-    pw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_test_pre': test_pre, 'best_test_rec': test_rec}, 0, add_log = True, add_writer = False)
-    pw.add_loss_vs_batch({'best_dev_f1': best_f1, 'best_dev_pre': best_dev_pre, 'best_dev_rec': best_dev_rec}, 0, add_log = True, add_writer = False)
+    pw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_test_pre': test_pre, 'best_test_rec': test_rec}, 0, use_logger = True, use_writer = False)
+    pw.add_loss_vs_batch({'best_dev_f1': best_f1, 'best_dev_pre': best_dev_pre, 'best_dev_rec': best_dev_rec}, 0, use_logger = True, use_writer = False)
 
-    if args.pruned_output:
+    pw.info('Loading best_performing_model.')
+    seq_param = pw.restore_best_checkpoint()['model']
+    seq_model.load_state_dict(seq_param)
+    seq_model.to(device)
 
-        pw.info('Loading best_performing_model.')
-        seq_param = wrapper.restore_best_checkpoint(pw.path)['model']
-        seq_model.load_state_dict(seq_param)
-        seq_model.cuda()
+    pw.info('Test before deleting layers.')
+    test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
+    dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
 
-        pw.info('Test before deleting layers.')
-        test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
-        dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
+    pw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_dev_f1': dev_f1}, 1, use_logger = True, use_writer = False)
 
-        pw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_dev_f1': dev_f1}, 1, add_log = True, add_writer = False)
+    pw.info('Deleting layers.')
+    seq_model.cpu()
+    seq_model.prune_dense_rnn()
+    seq_model.to(device)
 
-        pw.info('Deleting layers.')
-        seq_model.cpu()
-        seq_model.prune_dense_rnn()
-        seq_model.cuda()
+    pw.info('Resulting models display.')
+    print(seq_model)
 
-        pw.info('Resulting models display.')
-        print(seq_model)
+    pw.info('Test after deleting layers.')
+    test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
+    dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
 
-        pw.info('Test after deleting layers.')
-        test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
-        dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
+    pw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_dev_f1': dev_f1}, 2, use_logger = True, use_writer = False)
 
-        pw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_dev_f1': dev_f1}, 2, add_log = True, add_writer = False)
-
-        seq_model.cpu()
-        pw.info('Saveing model...')
-        pw.save_checkpoint(model = seq_model, is_best = True)
+    seq_model.cpu()
+    pw.info('Saving model...')
+    pw.save_checkpoint(model = seq_model, is_best = True)
 
     pw.close()

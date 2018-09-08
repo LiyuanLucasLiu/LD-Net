@@ -15,11 +15,11 @@ class BasicUnit(nn.Module):
 
     Parameters
     ----------
-    unit : ``torch.nn.Module``, required.
+    unit : ``str``, required.
         The type of rnn unit.
-    input_dim : ``float``, required.
+    input_dim : ``int``, required.
         The input dimension fo the unit.
-    hid_dim : ``float``, required.
+    hid_dim : ``int``, required.
         The hidden dimension fo the unit.
     droprate : ``float``, required.
         The dropout ratrio.
@@ -80,13 +80,13 @@ class BasicRNN(nn.Module):
 
     Parameters
     ----------
-    layer_num: ``float``, required.
+    layer_num: ``int``, required.
         The number of layers. 
     unit : ``torch.nn.Module``, required.
         The type of rnn unit.
-    input_dim : ``float``, required.
+    input_dim : ``int``, required.
         The input dimension fo the unit.
-    hid_dim : ``float``, required.
+    hid_dim : ``int``, required.
         The hidden dimension fo the unit.
     droprate : ``float``, required.
         The dropout ratrio.

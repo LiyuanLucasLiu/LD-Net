@@ -21,7 +21,7 @@ from model_seq.seqlm import BasicSeqLM
 from model_seq.sparse_lm import SparseSeqLM
 import model_seq.utils as utils
 
-import torch_scope.wrapper as wrapper
+from torch_scope import wrapper
 
 import argparse
 import json
@@ -36,19 +36,19 @@ if __name__ == "__main__":
 
     parser.add_argument('--gpu', type=str, default="auto")
     parser.add_argument('--cp_root', default='./checkpoint')
-    parser.add_argument('--checkpoint_name', default='ldnet0')
+    parser.add_argument('--checkpoint_name', default='ner')
     parser.add_argument('--git_tracking', action='store_true')
 
     parser.add_argument('--corpus', default='./data/ner_dataset.pk')
-    parser.add_argument('--forward_lm', default='./checkpoint/basic_3.model')
-    parser.add_argument('--backward_lm', default='./checkpoint/basic_4.model')
+    parser.add_argument('--forward_lm', default='./checkpoint/ld0.th')
+    parser.add_argument('--backward_lm', default='./checkpoint/ld_0.th')
 
-    parser.add_argument('--lm_hid_dim', type=int, default=2048)
+    parser.add_argument('--lm_hid_dim', type=int, default=300)
     parser.add_argument('--lm_word_dim', type=int, default=300)
     parser.add_argument('--lm_label_dim', type=int, default=-1)
-    parser.add_argument('--lm_layer_num', type=int, default=2)
+    parser.add_argument('--lm_layer_num', type=int, default=10)
     parser.add_argument('--lm_droprate', type=float, default=0.5)
-    parser.add_argument('--lm_rnn_layer', choices=['Basic', 'DenseNet', 'LDNet'], default='Basic')
+    parser.add_argument('--lm_rnn_layer', choices=['Basic', 'DenseNet', 'LDNet'], default='LDNet')
     parser.add_argument('--lm_rnn_unit', choices=['gru', 'lstm', 'rnn'], default='lstm')
 
     parser.add_argument('--seq_c_dim', type=int, default=30)
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     parser.add_argument('--patience', type=int, default=15)
     parser.add_argument('--epoch', type=int, default=200)
     parser.add_argument('--clip', type=float, default=5)
-    parser.add_argument('--lr', type=float, default=-1)
+    parser.add_argument('--lr', type=float, default=0.015)
     parser.add_argument('--lr_decay', type=float, default=0.05)
     parser.add_argument('--update', choices=['Adam', 'Adagrad', 'Adadelta', 'SGD'], default='SGD')
     args = parser.parse_args()

@@ -22,7 +22,7 @@ from model_seq.seqlm import BasicSeqLM
 from model_seq.elmo import ElmoLM
 import model_seq.utils as utils
 
-import torch_scope.wrapper as wrapper
+from torch_scope import wrapper
 
 import argparse
 import json
@@ -36,12 +36,12 @@ if __name__ == "__main__":
 
     parser.add_argument('--gpu', type=str, default="auto")
     parser.add_argument('--cp_root', default='./checkpoint')
-    parser.add_argument('--checkpoint_name', default='elmo0')
+    parser.add_argument('--checkpoint_name', default='elmo_ner')
     parser.add_argument('--git_tracking', action='store_true')
 
     parser.add_argument('--corpus', default='./data/ner_dataset.pk')
-    parser.add_argument('--forward_lm', default='./checkpoint/basic_3.model')
-    parser.add_argument('--backward_lm', default='./checkpoint/basic_4.model')
+    parser.add_argument('--forward_lm', default='./checkpoint/basic0.th')
+    parser.add_argument('--backward_lm', default='./checkpoint/basic_0.th')
 
     parser.add_argument('--lm_hid_dim', type=int, default=2048)
     parser.add_argument('--lm_word_dim', type=int, default=300)

@@ -22,7 +22,7 @@ from model_seq.seqlm import BasicSeqLM
 from model_seq.sparse_lm import SparseSeqLM
 import model_seq.utils as utils
 
-import torch_scope.wrapper as wrapper
+from torch_scope import wrapper
 
 import argparse
 import json
@@ -36,11 +36,11 @@ if __name__ == "__main__":
     
     parser.add_argument('--gpu', type=str, default="auto")
     parser.add_argument('--cp_root', default='./checkpoint')
-    parser.add_argument('--checkpoint_name', default='pner')
+    parser.add_argument('--checkpoint_name', default='p_ner')
     parser.add_argument('--git_tracking', action='store_true')
 
-    parser.add_argument('--corpus', default='../DDCLM/data/ner_dataset.pk')
-    parser.add_argument('--load_seq', default='./checkpoint/nld.model')
+    parser.add_argument('--corpus', default='./data/ner_dataset.pk')
+    parser.add_argument('--load_seq', default='./checkpoint/ner.th')
 
     parser.add_argument('--lm_hid_dim', type=int, default=300)
     parser.add_argument('--lm_word_dim', type=int, default=300)
@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--batch_size', type=int, default=10)
     parser.add_argument('--patience', type=int, default=5)
-    parser.add_argument('--epoch', type=int, default=100)
+    parser.add_argument('--epoch', type=int, default=200)
     parser.add_argument('--least', type=int, default=50)
     parser.add_argument('--clip', type=float, default=5)
     parser.add_argument('--lr', type=float, default=0.015)

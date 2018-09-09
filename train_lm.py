@@ -10,14 +10,13 @@ import math
 
 from model_word_ada.LM import LM
 from model_word_ada.basic import BasicRNN
-from model_word_ada.ddnet import DDRNN
 from model_word_ada.ldnet import LDRNN
 from model_word_ada.densenet import DenseRNN
 from model_word_ada.dataset import LargeDataset, EvalDataset
 from model_word_ada.adaptive import AdaptiveSoftmax
 import model_word_ada.utils as utils
 
-import torch_scope.wrapper as wrapper
+from torch_scope import wrapper
 
 import argparse
 import json
@@ -52,23 +51,23 @@ if __name__ == "__main__":
     parser.add_argument('--git_tracking', action='store_true')
 
     parser.add_argument('--dataset_folder', default='./data/one_billion/')
-    parser.add_argument('--load_checkpoint', default='')
+    parser.add_argument('--restore_checkpoint', default='')
 
     parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--sequence_length', type=int, default=20)
-    parser.add_argument('--hid_dim', type=int, default=2048)
+    parser.add_argument('--hid_dim', type=int, default=300)
     parser.add_argument('--word_dim', type=int, default=300)
-    parser.add_argument('--label_dim', type=int, default=-1)
-    parser.add_argument('--layer_num', type=int, default=2)
-    parser.add_argument('--droprate', type=float, default=0.1)
+    parser.add_argument('--label_dim', type=int, default=1600)
+    parser.add_argument('--layer_num', type=int, default=10)
+    parser.add_argument('--droprate', type=float, default=0.01)
     parser.add_argument('--add_relu', action='store_true')
     parser.add_argument('--layer_drop', type=float, default=0.5)
-    parser.add_argument('--epoch', type=int, default=100)
+    parser.add_argument('--epoch', type=int, default=400)
     parser.add_argument('--clip', type=float, default=5)
     parser.add_argument('--update', choices=['Adam', 'Adagrad', 'Adadelta'], default='Adam', help='adam is the best')
-    parser.add_argument('--rnn_layer', choices=['Basic', 'DDNet', 'DenseNet', 'LDNet'], default='Basic')
+    parser.add_argument('--rnn_layer', choices=['Basic', 'DenseNet', 'LDNet'], default='LDNet')
     parser.add_argument('--rnn_unit', choices=['gru', 'lstm', 'rnn'], default='lstm')
-    parser.add_argument('--lr', type=float, default=-1)
+    parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--lr_decay', type=float, default=0.1)
     parser.add_argument('--cut_off', nargs='+', default=[4000,40000,200000])
     parser.add_argument('--interval', type=int, default=100)
@@ -91,7 +90,7 @@ if __name__ == "__main__":
     test_loader = EvalDataset(test_data, args.batch_size)
 
     pw.info('Building models.')
-    rnn_map = {'Basic': BasicRNN, 'DDNet': DDRNN, 'DenseNet': DenseRNN, 'LDNet': functools.partial(LDRNN, layer_drop = args.layer_drop)}
+    rnn_map = {'Basic': BasicRNN, 'DenseNet': DenseRNN, 'LDNet': functools.partial(LDRNN, layer_drop = args.layer_drop)}
     rnn_layer = rnn_map[args.rnn_layer](args.layer_num, args.rnn_unit, args.word_dim, args.hid_dim, args.droprate)
     cut_off = args.cut_off + [len(w_map) + 1]
     if args.label_dim > 0:
@@ -108,13 +107,13 @@ if __name__ == "__main__":
     else:
         optimizer=optim_map[args.update](lm_model.parameters())
 
-    if args.load_checkpoint:
-        if os.path.isfile(args.load_checkpoint):
-            pw.info("loading checkpoint: '{}'".format(args.load_checkpoint))
-            model_file = wrapper.restore_checkpoint(args.load_checkpoint)['model']
+    if args.restore_checkpoint:
+        if os.path.isfile(args.restore_checkpoint):
+            pw.info("loading checkpoint: '{}'".format(args.restore_checkpoint))
+            model_file = wrapper.restore_checkpoint(args.restore_checkpoint)['model']
             lm_model.load_state_dict(model_file, False)
         else:
-            pw.info("no checkpoint found at: '{}'".format(args.load_checkpoint))
+            pw.info("no checkpoint found at: '{}'".format(args.restore_checkpoint))
     lm_model.to(device)
 
     pw.info('Saving configues.')

@@ -24,6 +24,7 @@ Details about LD-Net can be accessed at: https://arxiv.org/abs/1804.07827.
 	- [Data](#data)
 	- [Model](#model)
 	- [Command](#command)
+- [Citation](#citation)
 
 ## Model Notes
 
@@ -44,7 +45,6 @@ Details about LD-Net can be accessed at: https://arxiv.org/abs/1804.07827.
 | LD-Net (w.o. pruning) | 51 M | 96.01 | 0.07 |
 | LD-Net (origin, picked based on dev f1) | 51 M | 96.13 |  |
 | LD-Net (pruned) | **10 M** | 95.66 | 0.04 |
-
 
 ## Pretrained Models
 
@@ -73,7 +73,6 @@ The original pre-trained named entity tagger achieves 96.13 F1, the pruned tagge
 | Original Tagger | Pruned Tagger |
 | ------------- |------------- |
 | [Download Link](http://dmserv4.cs.illinois.edu/np.th) | Preparing... |
-
 
 ## Training
 
@@ -107,7 +106,6 @@ Pre-process scripts are available in ```pre_seq``` and ```pre_word_ada```, while
 | ------------- |------------- |
 | [Download Link](http://dmserv4.cs.illinois.edu/ner_dataset.pk) | [Download Link](http://dmserv4.cs.illinois.edu/np_dataset.pk) |
 
-
 ### Model
 
 Our implementations are available in ```model_seq``` and ```model_word_ada```, and the documentations are hosted in [ReadTheDoc](http://lm-lstm-crf.readthedocs.io/en/latest/)
@@ -115,3 +113,14 @@ Our implementations are available in ```model_seq``` and ```model_word_ada```, a
 | NER | Chunking |
 | ------------- |------------- |
 | [Download Link](http://dmserv4.cs.illinois.edu/ner_dataset.pk) | [Download Link](http://dmserv4.cs.illinois.edu/np_dataset.pk) |
+
+## Citation
+
+If you find the implementation useful, please cite the following paper: [Efficient Contextualized Representation: Language Model Pruning for Sequence Labeling](https://arxiv.org/abs/1804.07827)
+
+@inproceedings{liu2018efficient,
+  title = "{Efficient Contextualized Representation: Language Model Pruning for Sequence Labeling}", 
+  author = {Liu, Liyuan and Ren, Xiang and Shang, Jingbo and Peng, Jian and Han, Jiawei}, 
+  booktitle = {EMNLP}, 
+  year = 2018, 
+}

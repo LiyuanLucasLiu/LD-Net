@@ -91,7 +91,7 @@ bash ldnet_np_prune.sh
 
 ### Dependency
 
-Our package is based on Python 3.6 and the following packages (as in ```requirements.txt```):
+Our package is based on Python 3.6 and the following packages:
 ```
 numpy
 tqdm

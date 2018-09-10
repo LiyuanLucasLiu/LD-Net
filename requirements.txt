@@ -1,4 +1,0 @@
-numpy
-tqdm
-torch-scope
-torch==0.4.1

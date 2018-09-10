@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="description" content="Empower Sequence Labeling with Task-Aware Language Model" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <link href='https://fonts.googleapis.com/css?family=Roboto:400,400italic,700italic,700' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Roboto+Condensed:300,300italic,700,700italic' rel='stylesheet' type='text/css'>
+
+    <title>LD-Net</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/LiyuanLucasLiu/LD-Net">View on GitHub</a>
+
+          <h2 id="project_tagline">Efficient Contextualized Representation: Language Model Pruning for Sequence Labeling</h2>
+            
+          <h3 id="project_author">
+          <a href="https://liyuanlucasliu.github.io/">Liyuan Liu</a>, <a href="http://xren7.web.engr.illinois.edu/">Xiang Ren</a>, <a href="http://shangjingbo1226.github.io/">Jingbo Shang</a>, <a href="http://jianpeng.web.engr.illinois.edu/">Jian Peng</a>, <a href="http://hanj.cs.illinois.edu/">Jiawei Han</a>
+          </h3>
+        </header>
+    </div>
+
+    <section class="outer">
+      <div class="downloads inner">
+        <a class="zip_download_link" href="https://liyuanlucasliu.github.io/pdf/2018EMNLP_LDNET.pdf">Paper</a>
+        <a class="tar_download_link" href="#Ref">Bib Tex</a>
+        <a class="zip_download_link" href="https://ld-net.readthedocs.io/en/latest/">Documentation</a>
+      </div>
+      <p>
+    </section>
+
+
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+
+      <h1>LD-Net</h1>
+
+        <p>
+          LD-Net provides sequence labeling models featuring:
+          <ul>
+            <li> <B>Efficiency</B>: constructing <I>efficient contextualized representations</I> without retraining LMs. </li>
+            <li> <B>Portability</B>: <I>well-organized</I>, <I>easy-to-modify</I> and <I> <a href="http://lm-lstm-crf.readthedocs.io/en/latest/">well-documented</a></I>. </li>
+          </ul>
+
+          Remarkablely, our pre-trained NER model achieved:
+          <ul>
+            <li> <B>92.08</B> test F1 on the CoNLL03 NER task. </li>
+            <li> <B>160K words/sec</B> decoding speed (<B>6X</B> speedup compared to its original model). </li>
+          </ul>
+
+        </p>
+
+      <h1>Motivation</h1>
+      <p>
+        Language model has demonstrated its effectiveness on contextualized word representation and pushes the state-of-the-art performances on various tasks. 
+        Despite performance improvements, language models also makes the resulting model too slow for real-world applications.
+        In this paper, we aim to conduct language model pruning for <B>efficient contextualized representation</B>, while maintaining the <B>plug-in-and-play</B> manner.
+      </p>
+
+      <p>
+        Details about LD-Net can be accessed at: <I><a href="https://arxiv.org/abs/1804.07827."> PDF </a></I>
+      </p>
+
+        <p align="center"><img width="100%" alt="framework" src="model_note.png"/></p>
+
+      <h1>Benchmarks</h1>
+
+        <h2>NER</h2>
+
+        When models are only trained on the CoNLL 2003 English NER dataset, the results are summarized as below.
+
+        <table align="center">
+        <caption>Table. 1 Performance on the CoNLL 2003 NER dataset</caption>
+        <tr>
+          <th>Model for CoNLL03</th>
+          <th>#FLOPs</th> 
+          <th>Mean(F1)</th>
+          <th>Std(F1)</th>
+        </tr>
+        <tr>
+          <td> Vanilla NER w.o. LM  </td>
+          <td> 3 M </td>
+          <td> 90.78 </td>
+          <td> 0.24 </td>
+        </tr>
+        <tr>
+          <td> LD-Net (w.o. pruning) </td>
+          <td>  51 M </td>
+          <td>  91.86 </td>
+          <td> 0.15 </td>
+        </tr>
+        <tr>
+          <td> LD-Net (origin, picked based on dev f1) </td>
+          <td>  51 M </td>
+          <td>  91.95 </td>
+          <td>  </td>
+        </tr>
+        <tr>
+          <td> LD-Net (pruned) </td>
+          <td>  <B>5 M</B> </td>
+          <td>  91.84 </td>
+          <td>  0.14 </td>
+        </tr>
+        </table>
+
+        <h2>POS</h2>
+
+        When models are only trained on the CoNLL 2000 English Chunking dataset, the results are summarized as below.
+
+        <table align="center">
+        <caption>Table. 2 Performance on the CoNLL 2000 Chunking dataset</caption>
+        <tr>
+          <th>Model for CoNLL03</th>
+          <th>#FLOPs</th> 
+          <th>Mean(F1)</th>
+          <th>Std(F1)</th>
+        </tr>
+        <tr>
+          <td> Vanilla NER w.o. LM  </td>
+          <td> 3 M </td>
+          <td> 94.42 </td>
+          <td> 0.08 </td>
+        </tr>
+        <tr>
+          <td> LD-Net (w.o. pruning) </td>
+          <td>  51 M </td>
+          <td>  96.01 </td>
+          <td> 0.07 </td>
+        </tr>
+        <tr>
+          <td> LD-Net (origin, picked based on dev f1) </td>
+          <td>  51 M </td>
+          <td>  96.13 </td>
+          <td>  </td>
+        </tr>
+        <tr>
+          <td> LD-Net (pruned) </td>
+          <td>   <B>10 M</B> </td>
+          <td>  95.66 </td>
+          <td>  0.04 </td>
+        </tr>
+        </table>
+
+      <h1 id="Ref">Bib Tex</h1>
+
+      <p>
+      Please cite the following paper if you find the codes and datasets useful.
+      </p>
+
+      <p id="reference">
+      @inproceedings{liu2018efficient,<br>
+      &nbsp title = "{Efficient Contextualized Representation: Language Model Pruning for Sequence Labeling}", <br>
+      &nbsp author = {Liu, Liyuan and Ren, Xiang and Shang, Jingbo and Peng, Jian and Han, Jiawei}, <br>
+      &nbsp booktitle = {EMNLP}, <br>
+      &nbsp year = 2018, <br>
+      }</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">    
+        <p>
+          <a href="http://www.hitwebcounter.com" target="_blank">
+          <img src="http://hitwebcounter.com/counter/counter.php?page=6991966&style=0006&nbdigits=6&type=page&initCount=0" title="hit counts" Alt="hit counts" border="0" >
+          </a>                                           
+        </p>
+        <p class="copyright">by <a href="https://github.com/jasoncostello">Slate Theme</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+  </body>
+</html>

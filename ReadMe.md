@@ -34,14 +34,14 @@ Details about LD-Net can be accessed at: https://arxiv.org/abs/1804.07827.
 
 | Model for CoNLL03 | #FLOPs| Mean(F1) | Std(F1) |
 | ------------- |-------------| -----| -----|
-| Vanilla NER w.o. LM | | 3 M | 90.78 | 0.24 |
+| Vanilla NER w.o. LM | 3 M | 90.78 | 0.24 |
 | LD-Net (w.o. pruning) | 51 M | 91.86 | 0.15 |
 | LD-Net (origin, picked based on dev f1) | 51 M | 91.95 |  |
 | LD-Net (pruned) | **5 M** | 91.84 | 0.14 |
 
 | Model for CoNLL00 | #FLOPs| Mean(F1) | Std(F1) |
 | ------------- |-------------| -----| -----|
-| Vanilla NP w.o. LM | | 3 M | 94.42 | 0.08 |
+| Vanilla NP w.o. LM | 3 M | 94.42 | 0.08 |
 | LD-Net (w.o. pruning) | 51 M | 96.01 | 0.07 |
 | LD-Net (origin, picked based on dev f1) | 51 M | 96.13 |  |
 | LD-Net (pruned) | **10 M** | 95.66 | 0.04 |

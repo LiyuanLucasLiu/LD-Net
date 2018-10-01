@@ -129,6 +129,20 @@ class LDRNN(nn.Module):
 
         self.init_hidden()
 
+    def to_params(self):
+        """
+        To parameters.
+        """
+        return {
+            "rnn_type": "LDRNN",
+            "unit_type": self.layer[0].unit_type,
+            "layer_num": len(self.layer),
+            "emb_dim": self.layer[0].input_dim,
+            "hid_dim": self.layer[0].increase_rate,
+            "droprate": self.layer[0].droprate,
+            "after_pruned": False
+        }
+
     def init_hidden(self):
         """
         Initialize hidden states.

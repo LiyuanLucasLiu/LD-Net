@@ -111,6 +111,20 @@ class SDRNN(nn.Module):
 
         self.output_dim = self.layer_list[-1].output_dim
 
+    def to_params(self):
+        """
+        To parameters.
+        """
+        return {
+            "rnn_type": "LDRNN",
+            "unit_type": self.layer[0].unit_type,
+            "layer_num": 0 if not self.layer else len(self.layer),
+            "emb_dim": -1 if not self.layer else self.layer[0].input_dim,
+            "hid_dim": -1 if not self.layer else self.layer[0].increase_rate,
+            "droprate": -1 if not self.layer else self.layer[0].droprate,
+            "after_pruned": True
+        }
+
     def prune_dense_rnn(self):
         """
         Prune dense rnn to be smaller by delecting layers.
@@ -226,6 +240,16 @@ class SparseSeqLM(nn.Module):
         self.output_dim = ori_lm.rnn_output
 
         self.backward = backward
+
+    def to_params(self):
+        """
+        To parameters.
+        """
+        return {
+            "rnn_params": self.rnn.to_params(),
+            "word_embed_num": self.word_embed.num_embeddings,
+            "word_embed_dim": self.word_embed.embedding_dim
+        }
 
     def prune_dense_rnn(self):
         """

@@ -29,11 +29,11 @@ class BasicUnit(nn.Module):
 
         rnnunit_map = {'rnn': nn.RNN, 'lstm': nn.LSTM, 'gru': nn.GRU}
 
-        self.unit = unit
+        self.unit_type = unit
 
         self.layer = rnnunit_map[unit](input_dim, increase_rate, 1)
 
-        if 'lstm' == self.unit:
+        if 'lstm' == self.unit_type:
             utils.init_lstm(self.layer)
 
         self.droprate = droprate
@@ -108,6 +108,19 @@ class DenseRNN(nn.Module):
         self.output_dim = self.layer_list[-1].output_dim
 
         self.init_hidden()
+
+    def to_params(self):
+        """
+        To parameters.
+        """
+        return {
+            "rnn_type": "DenseRNN",
+            "unit_type": self.layer[0].unit_type,
+            "layer_num": len(self.layer),
+            "emb_dim": self.layer[0].input_dim,
+            "hid_dim": self.layer[0].increase_rate,
+            "droprate": self.layer[0].droprate
+        }
 
     def init_hidden(self):
         """

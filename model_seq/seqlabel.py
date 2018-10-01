@@ -83,6 +83,12 @@ class SeqLabel(nn.Module):
 
         self.drop = nn.Dropout(p = droprate)
 
+    def to_params(self):
+        """
+        To parameters.
+        """
+        
+
     def prune_dense_rnn(self):
         """
         Prune dense rnn to be smaller by delecting layers.

@@ -98,7 +98,8 @@ class BasicRNN(nn.Module):
         layer_list = [BasicUnit(unit, emb_dim, hid_dim, droprate)] + [BasicUnit(unit, hid_dim, hid_dim, droprate) for i in range(layer_num - 1)]
         self.layer = nn.Sequential(*layer_list)
         self.output_dim = layer_list[-1].output_dim
-
+        self.unit_type = unit
+        
         self.init_hidden()
 
     def to_params(self):

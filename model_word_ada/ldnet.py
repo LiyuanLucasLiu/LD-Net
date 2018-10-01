@@ -32,11 +32,11 @@ class BasicUnit(nn.Module):
 
         rnnunit_map = {'rnn': nn.RNN, 'lstm': nn.LSTM, 'gru': nn.GRU}
 
-        self.unit = unit
+        self.unit_type = unit
 
         self.layer = rnnunit_map[unit](input_dim, increase_rate, 1)
 
-        if 'lstm' == self.unit:
+        if 'lstm' == self.unit_type:
             utils.init_lstm(self.layer)
 
         self.layer_drop = layer_drop
@@ -121,12 +121,13 @@ class LDRNN(nn.Module):
     def __init__(self, layer_num, unit, emb_dim, hid_dim, droprate, layer_drop):
         super(LDRNN, self).__init__()
 
+        self.unit_type = unit
         self.layer_list = [BasicUnit(unit, emb_dim + i * hid_dim, hid_dim, droprate, layer_drop) for i in range(layer_num)]
 
         self.layer_num = layer_num
-        self.layer = nn.ModuleList(self.layer_list)
-        self.output_dim = self.layer_list[-1].output_dim
-
+        self.layer = nn.ModuleList(self.layer_list) if layer_num > 0 else None
+        self.output_dim = self.layer_list[-1].output_dim if layer_num > 0 else emb_dim
+    
         self.init_hidden()
 
     def to_params(self):

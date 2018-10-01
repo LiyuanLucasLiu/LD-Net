@@ -236,6 +236,16 @@ if __name__ == "__main__":
 
     seq_model.cpu()
     pw.info('Saving model...')
-    pw.save_checkpoint(model = seq_model, is_best = True)
+
+    seq_config = seq_model.to_params()
+
+    pw.save_checkpoint(model = seq_model, 
+                        is_best = True,
+                        s_dict = {'config': seq_config, 
+                            'flm_map': flm_map, 
+                            'blm_map': blm_map, 
+                            'gw_map': gw_map, 
+                            'c_map': c_map, 
+                            'y_map': y_map})
 
     pw.close()

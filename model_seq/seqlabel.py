@@ -99,7 +99,9 @@ class SeqLabel(nn.Module):
             "word_hidden": self.word_rnn.hidden_size,
             "word_layers": self.word_rnn.num_layers,
             "droprate": self.drop.p,
-            "y_num": self.y_num
+            "y_num": self.y_num,
+            "output_layer": "crf",
+            "label_schema": "iobes"
         }
 
     def prune_dense_rnn(self):

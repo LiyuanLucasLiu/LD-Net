@@ -102,10 +102,11 @@ class DenseRNN(nn.Module):
     """
     def __init__(self, layer_num, unit, emb_dim, hid_dim, droprate):
         super(DenseRNN, self).__init__()
-
+        
+        self.unit_type = unit
         self.layer_list = [BasicUnit(unit, emb_dim + i * hid_dim, hid_dim, droprate) for i in range(layer_num)]
         self.layer = nn.Sequential(*self.layer_list)
-        self.output_dim = self.layer_list[-1].output_dim
+        self.output_dim = self.layer_list[-1].output_dim if layer_num > 0 else emb_dim
 
         self.init_hidden()
 

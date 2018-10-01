@@ -31,7 +31,7 @@ class SBUnit(nn.Module):
     def __init__(self, ori_unit, droprate, fix_rate):
         super(SBUnit, self).__init__()
 
-        self.unit = ori_unit.unit
+        self.unit_type = ori_unit.unit_type
 
         self.layer = ori_unit.layer
 
@@ -98,18 +98,25 @@ class SDRNN(nn.Module):
     def __init__(self, ori_drnn, droprate, fix_rate):
         super(SDRNN, self).__init__()
 
-        self.layer_list = [SBUnit(ori_unit, droprate, fix_rate) for ori_unit in ori_drnn.layer._modules.values()]
+        if ori_drnn.layer:
+            self.layer_list = [SBUnit(ori_unit, droprate, fix_rate) for ori_unit in ori_drnn.layer._modules.values()]
 
-        self.weight_list = nn.Parameter(torch.FloatTensor([1.0] * len(self.layer_list)))
-        self.weight_list.requires_grad = not fix_rate
+            self.weight_list = nn.Parameter(torch.FloatTensor([1.0] * len(self.layer_list)))
+            self.weight_list.requires_grad = not fix_rate
 
-        # self.layer = nn.Sequential(*self.layer_list)
-        self.layer = nn.ModuleList(self.layer_list)
+            # self.layer = nn.Sequential(*self.layer_list)
+            self.layer = nn.ModuleList(self.layer_list)
 
-        for param in self.layer.parameters():
-            param.requires_grad = False
+            for param in self.layer.parameters():
+                param.requires_grad = False
+        else:
+            self.layer_list = list()
+            self.weight_list = list()
+            self.layer = None
 
-        self.output_dim = self.layer_list[-1].output_dim
+        # self.output_dim = self.layer_list[-1].output_dim
+        self.output_dim = ori_drnn.output_dim
+        self.unit_type = ori_drnn.unit_type
 
     def to_params(self):
         """
@@ -117,7 +124,7 @@ class SDRNN(nn.Module):
         """
         return {
             "rnn_type": "LDRNN",
-            "unit_type": self.layer[0].unit_type,
+            "unit_type": self.unit_type,
             "layer_num": 0 if not self.layer else len(self.layer),
             "emb_dim": -1 if not self.layer else self.layer[0].input_dim,
             "hid_dim": -1 if not self.layer else self.layer[0].increase_rate,

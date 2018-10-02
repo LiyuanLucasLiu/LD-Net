@@ -47,6 +47,16 @@ class BasicSeqLM(nn.Module):
 
         self.backward = backward
 
+    def to_params(self):
+        """
+        To parameters.
+        """
+        return {
+            "rnn_params": self.rnn.to_params(),
+            "word_embed_num": self.word_embed.num_embeddings,
+            "word_embed_dim": self.word_embed.embedding_dim
+        }
+
     def init_hidden(self):
         """
         initialize hidden states.

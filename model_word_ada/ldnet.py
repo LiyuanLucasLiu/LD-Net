@@ -127,6 +127,7 @@ class LDRNN(nn.Module):
         self.layer_num = layer_num
         self.layer = nn.ModuleList(self.layer_list) if layer_num > 0 else None
         self.output_dim = self.layer_list[-1].output_dim if layer_num > 0 else emb_dim
+        self.emb_dim = emb_dim
     
         self.init_hidden()
 

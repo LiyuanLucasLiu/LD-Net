@@ -24,6 +24,7 @@ Details about LD-Net can be accessed at: https://arxiv.org/abs/1804.07827.
 	- [Data](#data)
 	- [Model](#model)
 	- [Command](#command)
+- [Inference](#inference)
 - [Citation](#citation)
 
 ## Model Notes
@@ -64,7 +65,7 @@ The original pre-trained named entity tagger achieves 91.95 F1, the pruned tagge
 
 | Original Tagger | Pruned Tagger |
 | ------------- |------------- |
-| [Download Link](http://dmserv4.cs.illinois.edu/ner.th) | Preparing... |
+| [Download Link](http://dmserv4.cs.illinois.edu/ner.th) | [Download Link](http://dmserv4.cs.illinois.edu/pner1.th) |
 
 ### Chunking
 
@@ -72,7 +73,7 @@ The original pre-trained named entity tagger achieves 96.13 F1, the pruned tagge
 
 | Original Tagger | Pruned Tagger |
 | ------------- |------------- |
-| [Download Link](http://dmserv4.cs.illinois.edu/np.th) | Preparing... |
+| [Download Link](http://dmserv4.cs.illinois.edu/np.th) | [Download Link](http://dmserv4.cs.illinois.edu/pnp0.th) |
 
 ## Training
 
@@ -114,13 +115,19 @@ Our implementations are available in ```model_seq``` and ```model_word_ada```, a
 | ------------- |------------- |
 | [Download Link](http://dmserv4.cs.illinois.edu/ner_dataset.pk) | [Download Link](http://dmserv4.cs.illinois.edu/np_dataset.pk) |
 
+## Inference
+
+For model inference, please check our [LightNER package](https://github.com/LiyuanLucasLiu/LightNER) 
+
 ## Citation
 
 If you find the implementation useful, please cite the following paper: [Efficient Contextualized Representation: Language Model Pruning for Sequence Labeling](https://arxiv.org/abs/1804.07827)
 
+```
 @inproceedings{liu2018efficient,
   title = "{Efficient Contextualized Representation: Language Model Pruning for Sequence Labeling}", 
   author = {Liu, Liyuan and Ren, Xiang and Shang, Jingbo and Peng, Jian and Han, Jiawei}, 
   booktitle = {EMNLP}, 
   year = 2018, 
 }
+```

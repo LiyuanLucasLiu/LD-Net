@@ -11,10 +11,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import model_seq.utils as utils
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
 class SBUnit(nn.Module):
     """
     The basic recurrent unit for the dense-RNNs wrapper.
@@ -115,6 +111,7 @@ class SDRNN(nn.Module):
             self.layer = None
 
         # self.output_dim = self.layer_list[-1].output_dim
+        self.emb_dim = ori_drnn.emb_dim
         self.output_dim = ori_drnn.output_dim
         self.unit_type = ori_drnn.unit_type
 
@@ -126,7 +123,7 @@ class SDRNN(nn.Module):
             "rnn_type": "LDRNN",
             "unit_type": self.unit_type,
             "layer_num": 0 if not self.layer else len(self.layer),
-            "emb_dim": -1 if not self.layer else self.layer[0].input_dim,
+            "emb_dim": self.emb_dim,
             "hid_dim": -1 if not self.layer else self.layer[0].increase_rate,
             "droprate": -1 if not self.layer else self.layer[0].droprate,
             "after_pruned": True
@@ -163,6 +160,7 @@ class SDRNN(nn.Module):
             self.layer = nn.ModuleList(self.layer_list)
             self.weight_list = nn.Parameter(torch.FloatTensor(new_weight_list))
             self.weight_list.requires_grad = False
+
 
             for param in self.layer.parameters():
                 param.requires_grad = False
@@ -253,6 +251,7 @@ class SparseSeqLM(nn.Module):
         To parameters.
         """
         return {
+            "backward": self.backward,
             "rnn_params": self.rnn.to_params(),
             "word_embed_num": self.word_embed.num_embeddings,
             "word_embed_dim": self.word_embed.embedding_dim
@@ -314,3 +313,4 @@ class SparseSeqLM(nn.Module):
             out = out.view(out_size[0] * out_size[1], out_size[2]).index_select(0, ind).contiguous().view(out_size)
 
         return out
+        

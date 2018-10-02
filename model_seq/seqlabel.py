@@ -61,6 +61,7 @@ class SeqLabel(nn.Module):
 
         self.f_lm = f_lm
         self.b_lm = b_lm
+        self.unit_type = unit
 
         self.char_embed = nn.Embedding(c_num, c_dim)
         self.word_embed = nn.Embedding(w_num, w_dim)
@@ -88,6 +89,7 @@ class SeqLabel(nn.Module):
         To parameters.
         """
         return {
+            "model_type": "char-lstm-crf",
             "forward_lm": self.f_lm.to_params(),
             "backward_lm": self.b_lm.to_params(),
             "word_embed_num": self.word_embed.num_embeddings,
@@ -100,8 +102,8 @@ class SeqLabel(nn.Module):
             "word_layers": self.word_rnn.num_layers,
             "droprate": self.drop.p,
             "y_num": self.y_num,
-            "output_layer": "crf",
-            "label_schema": "iobes"
+            "label_schema": "iobes",
+            "unit_type": self.unit_type
         }
 
     def prune_dense_rnn(self):

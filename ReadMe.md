@@ -65,7 +65,7 @@ The original pre-trained named entity tagger achieves 91.95 F1, the pruned tagge
 
 | Original Tagger | Pruned Tagger |
 | ------------- |------------- |
-| [Download Link](http://dmserv4.cs.illinois.edu/ner.th) | [Download Link](http://dmserv4.cs.illinois.edu/pner1.th) |
+| [Download Link](http://dmserv4.cs.illinois.edu/ner.th) | [Download Link](http://dmserv4.cs.illinois.edu/pner0.th) |
 
 ### Chunking
 

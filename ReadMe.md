@@ -3,6 +3,17 @@
 [![Documentation Status](https://readthedocs.org/projects/ld-net/badge/?version=latest)](http://ld-net.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
+**Check Our New NER Toolkit🚀🚀🚀**
+- **Inference**:
+  - **[LightNER](https://github.com/LiyuanLucasLiu/LightNER)**: inference w. models pre-trained / trained w. *any* following tools, *efficiently*. 
+- **Training**:
+  - **[LD-Net](https://github.com/LiyuanLucasLiu/LD-Net)**: train NER models w. efficient contextualized representations.
+  - **[VanillaNER](https://github.com/LiyuanLucasLiu/Vanilla_NER)**: train vanilla NER models w. pre-trained embedding.
+- **Distant Training**:
+  - **[AutoNER](https://shangjingbo1226.github.io/AutoNER/)**: train NER models w.o. line-by-line annotations and get competitive performance.
+
+--------------------------------
+
 LD-Net provides sequence labeling models featuring:
 - **Efficiency**: constructing *efficient contextualized representations* without retraining language models. 
 - **Portability**: *well-organized*, *easy-to-modify* and *[well-documented](http://lm-lstm-crf.readthedocs.io/en/latest/)*.

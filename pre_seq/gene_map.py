@@ -69,12 +69,13 @@ if __name__ == "__main__":
                 if word not in gw_map:
                     w_count[word] = w_count.get(word, 0) + 1
 
-    w_map = {v[0]:k for k, v in enumerate(w_count.items()) if v[1] > args.threshold}
-    for k in w_map:
+    w_set = {k for k, v in w_count.items() if v > args.threshold}
+    for k in w_set:
         gw_map[k] = len(gw_map)
         embedding_array.append([random.random() * bias - bias for tup in embedding_array[0]])
 
-    c_map = {v[0]:k for k, v in enumerate(c_count.items()) if v[1] > args.threshold}
+    c_set = {k for k, v in c_count.items() if v > args.threshold}
+    c_map = {v:k for k, v in enumerate(c_set)}
     c_map['<unk>'] = len(c_map)
 
     y_map['<s>'] = len(y_map)

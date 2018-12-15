@@ -19,11 +19,14 @@ import model_word_ada.utils as utils
 from torch_scope import wrapper
 
 import argparse
+import logging
 import json
 import os
 import sys
 import itertools
 import functools
+
+logger = logging.getLogger(__name__)
 
 def evaluate(data_loader, lm_model, limited = 76800):
     lm_model.eval()
@@ -76,20 +79,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     pw = wrapper(os.path.join(args.cp_root, args.checkpoint_name), args.checkpoint_name, enable_git_track=args.git_tracking)
-    pw.set_level('info')
 
     gpu_index = pw.auto_device() if 'auto' == args.gpu else int(args.gpu)
     device = torch.device("cuda:" + str(gpu_index) if gpu_index >= 0 else "cpu")
     if gpu_index >= 0:
         torch.cuda.set_device(gpu_index)
 
-    pw.info('Loading dataset.')
+    logger.info('Loading dataset.')
     dataset = pickle.load(open(args.dataset_folder + 'test.pk', 'rb'))
     w_map, test_data, range_idx = dataset['w_map'], dataset['test_data'], dataset['range']
     train_loader = LargeDataset(args.dataset_folder, range_idx, args.batch_size, args.sequence_length)
     test_loader = EvalDataset(test_data, args.batch_size)
 
-    pw.info('Building models.')
+    logger.info('Building models.')
     rnn_map = {'Basic': BasicRNN, 'DenseNet': DenseRNN, 'LDNet': functools.partial(LDRNN, layer_drop = args.layer_drop)}
     rnn_layer = rnn_map[args.rnn_layer](args.layer_num, args.rnn_unit, args.word_dim, args.hid_dim, args.droprate)
     cut_off = args.cut_off + [len(w_map) + 1]
@@ -100,7 +102,7 @@ if __name__ == "__main__":
     lm_model = LM(rnn_layer, soft_max, len(w_map), args.word_dim, args.droprate, label_dim = args.label_dim, add_relu=args.add_relu)
     lm_model.rand_ini()
 
-    pw.info('Building optimizer.')
+    logger.info('Building optimizer.')
     optim_map = {'Adam' : optim.Adam, 'Adagrad': optim.Adagrad, 'Adadelta': optim.Adadelta}
     if args.lr > 0:
         optimizer=optim_map[args.update](lm_model.parameters(), lr=args.lr)
@@ -109,17 +111,17 @@ if __name__ == "__main__":
 
     if args.restore_checkpoint:
         if os.path.isfile(args.restore_checkpoint):
-            pw.info("loading checkpoint: '{}'".format(args.restore_checkpoint))
+            logger.info("loading checkpoint: '{}'".format(args.restore_checkpoint))
             model_file = wrapper.restore_checkpoint(args.restore_checkpoint)['model']
             lm_model.load_state_dict(model_file, False)
         else:
-            pw.info("no checkpoint found at: '{}'".format(args.restore_checkpoint))
+            logger.info("no checkpoint found at: '{}'".format(args.restore_checkpoint))
     lm_model.to(device)
 
-    pw.info('Saving configues.')
+    logger.info('Saving configues.')
     pw.save_configue(args)
 
-    pw.info('Setting up training environ.')
+    logger.info('Setting up training environ.')
     best_train_ppl = float('inf')
     cur_lr = args.lr
     batch_index = 0
@@ -133,8 +135,8 @@ if __name__ == "__main__":
     try:
         for indexs in range(args.epoch):
     
-            pw.info('############')
-            pw.info('Epoch: {}'.format(indexs))
+            logger.info('############')
+            logger.info('Epoch: {}'.format(indexs))
             pw.nvidia_memory_map()
 
             lm_model.train()
@@ -173,7 +175,7 @@ if __name__ == "__main__":
                     patience = 0
                     cur_lr *= args.lr_decay
                     best_train_ppl = float('inf')
-                    pw.info('adjust_learning_rate...')
+                    logger.info('adjust_learning_rate...')
                     utils.adjust_learning_rate(optimizer, cur_lr)
 
             test_ppl = evaluate(test_loader.get_tqdm(device), lm_model)
@@ -182,7 +184,7 @@ if __name__ == "__main__":
 
     except KeyboardInterrupt:
 
-        pw.info('Exiting from training early')
+        logger.info('Exiting from training early')
         test_ppl = evaluate(test_loader.get_tqdm(device), lm_model)
         pw.add_loss_vs_batch({'test_ppl': test_ppl}, indexs, use_logger = True)
         pw.save_checkpoint(model = lm_model, optimizer = optimizer, is_best = True)

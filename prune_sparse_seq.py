@@ -25,11 +25,14 @@ import model_seq.utils as utils
 from torch_scope import wrapper
 
 import argparse
+import logging
 import json
 import os
 import sys
 import itertools
 import functools
+
+logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -73,20 +76,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     pw = wrapper(os.path.join(args.cp_root, args.checkpoint_name), args.checkpoint_name, enable_git_track=args.git_tracking)
-    pw.set_level('info')
     
     gpu_index = pw.auto_device() if 'auto' == args.gpu else int(args.gpu)
     device = torch.device("cuda:" + str(gpu_index) if gpu_index >= 0 else "cpu")
     if gpu_index >= 0:
         torch.cuda.set_device(gpu_index)
 
-    pw.info('Loading data from {}.'.format(args.corpus))
+    logger.info('Loading data from {}.'.format(args.corpus))
 
     dataset = pickle.load(open(args.corpus, 'rb'))
     name_list = ['flm_map', 'blm_map', 'gw_map', 'c_map', 'y_map', 'emb_array', 'train_data', 'test_data', 'dev_data']
     flm_map, blm_map, gw_map, c_map, y_map, emb_array, train_data, test_data, dev_data = [dataset[tup] for tup in name_list ]
 
-    pw.info('Building language models and seuqence labeling models.')
+    logger.info('Building language models and seuqence labeling models.')
 
     rnn_map = {'Basic': BasicRNN, 'DenseNet': DenseRNN, 'LDNet': functools.partial(LDRNN, layer_drop = 0)}
     flm_rnn_layer = rnn_map[args.lm_rnn_layer](args.lm_layer_num, args.lm_rnn_unit, args.lm_word_dim, args.lm_hid_dim, args.lm_droprate)
@@ -98,7 +100,7 @@ if __name__ == "__main__":
     SL_map = {'vanilla':Vanilla_SeqLabel, 'lm-aug': SeqLabel}
     seq_model = SL_map[args.seq_model](flm_model_seq, blm_model_seq, len(c_map), args.seq_c_dim, args.seq_c_hid, args.seq_c_layer, len(gw_map), args.seq_w_dim, args.seq_w_hid, args.seq_w_layer, len(y_map), args.seq_droprate, unit=args.seq_rnn_unit)
 
-    pw.info('Loading pre-trained models from {}.'.format(args.load_seq))
+    logger.info('Loading pre-trained models from {}.'.format(args.load_seq))
 
     seq_file = wrapper.restore_checkpoint(args.load_seq)['model']
     seq_model.load_state_dict(seq_file)
@@ -107,11 +109,11 @@ if __name__ == "__main__":
     decoder = CRFDecode(y_map)
     evaluator = eval_wc(decoder, 'f1')
 
-    pw.info('Constructing dataset.')
+    logger.info('Constructing dataset.')
 
     train_dataset, test_dataset, dev_dataset = [SeqDataset(tup_data, flm_map['\n'], blm_map['\n'], gw_map['<\n>'], c_map[' '], c_map['\n'], y_map['<s>'], y_map['<eof>'], len(y_map), args.batch_size) for tup_data in [train_data, test_data, dev_data]]
 
-    pw.info('Constructing optimizer.')
+    logger.info('Constructing optimizer.')
 
     param_dict = filter(lambda t: t.requires_grad, seq_model.parameters())
     optim_map = {'Adam' : optim.Adam, 'Adagrad': optim.Adagrad, 'Adadelta': optim.Adadelta, 'SGD': functools.partial(optim.SGD, momentum=0.9)}
@@ -120,11 +122,11 @@ if __name__ == "__main__":
     else:
         optimizer=optim_map[args.update](param_dict)
 
-    pw.info('Saving configues.')
+    logger.info('Saving configues.')
 
     pw.save_configue(args)
 
-    pw.info('Setting up training environ.')
+    logger.info('Setting up training environ.')
 
     best_f1 = float('-inf')
     patience_count = 0
@@ -135,12 +137,12 @@ if __name__ == "__main__":
     dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
     print(dev_f1)
     
-    pw.info('Start training...')
+    logger.info('Start training...')
 
     for indexs in range(args.epoch):
 
-        pw.info('############')
-        pw.info('Epoch: {}'.format(indexs))
+        logger.info('############')
+        logger.info('Epoch: {}'.format(indexs))
         pw.nvidia_memory_map()
 
         iterator = train_dataset.get_tqdm(device)
@@ -187,7 +189,7 @@ if __name__ == "__main__":
         pw.add_loss_vs_batch({'dev_f1': dev_f1, 'none_zero_count': nonezero_count.item()}, indexs, use_logger = True)
         pw.add_loss_vs_batch({'dev_pre': dev_pre, 'dev_rec': dev_rec}, indexs, use_logger = False)
 
-        pw.info('Saving model...')
+        logger.info('Saving model...')
         pw.save_checkpoint(model = seq_model, is_best = (nonezero_count <= args.seq_lambda1 and dev_f1 > best_f1))
 
         if nonezero_count <= args.seq_lambda1 and dev_f1 > best_f1:
@@ -209,33 +211,33 @@ if __name__ == "__main__":
     pw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_test_pre': test_pre, 'best_test_rec': test_rec}, 0, use_logger = True, use_writer = False)
     pw.add_loss_vs_batch({'best_dev_f1': best_f1, 'best_dev_pre': best_dev_pre, 'best_dev_rec': best_dev_rec}, 0, use_logger = True, use_writer = False)
 
-    pw.info('Loading best_performing_model.')
+    logger.info('Loading best_performing_model.')
     seq_param = pw.restore_best_checkpoint()['model']
     seq_model.load_state_dict(seq_param)
     seq_model.to(device)
 
-    pw.info('Test before deleting layers.')
+    logger.info('Test before deleting layers.')
     test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
     dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
 
     pw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_dev_f1': dev_f1}, 1, use_logger = True, use_writer = False)
 
-    pw.info('Deleting layers.')
+    logger.info('Deleting layers.')
     seq_model.cpu()
     seq_model.prune_dense_rnn()
     seq_model.to(device)
 
-    pw.info('Resulting models display.')
+    logger.info('Resulting models display.')
     print(seq_model)
 
-    pw.info('Test after deleting layers.')
+    logger.info('Test after deleting layers.')
     test_f1, test_pre, test_rec, test_acc = evaluator.calc_score(seq_model, test_dataset.get_tqdm(device))
     dev_f1, dev_pre, dev_rec, dev_acc = evaluator.calc_score(seq_model, dev_dataset.get_tqdm(device))
 
     pw.add_loss_vs_batch({'best_test_f1': test_f1, 'best_dev_f1': dev_f1}, 2, use_logger = True, use_writer = False)
 
     seq_model.cpu()
-    pw.info('Saving model...')
+    logger.info('Saving model...')
 
     seq_config = seq_model.to_params()
 

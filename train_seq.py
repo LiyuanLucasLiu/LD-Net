@@ -24,12 +24,14 @@ import model_seq.utils as utils
 from torch_scope import wrapper
 
 import argparse
+import logging
 import json
 import os
 import sys
 import itertools
 import functools
 
+logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -72,20 +74,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     pw = wrapper(os.path.join(args.cp_root, args.checkpoint_name), args.checkpoint_name, enable_git_track=args.git_tracking)
-    pw.set_level('info')
 
     gpu_index = pw.auto_device() if 'auto' == args.gpu else int(args.gpu)
     device = torch.device("cuda:" + str(gpu_index) if gpu_index >= 0 else "cpu")
     if gpu_index >= 0:
         torch.cuda.set_device(gpu_index)
     
-    pw.info('Loading data')
+    logger.info('Loading data')
 
     dataset = pickle.load(open(args.corpus, 'rb'))
     name_list = ['flm_map', 'blm_map', 'gw_map', 'c_map', 'y_map', 'emb_array', 'train_data', 'test_data', 'dev_data']
     flm_map, blm_map, gw_map, c_map, y_map, emb_array, train_data, test_data, dev_data = [dataset[tup] for tup in name_list ]
 
-    pw.info('Loading language model')
+    logger.info('Loading language model')
 
     rnn_map = {'Basic': BasicRNN, 'DenseNet': DenseRNN, 'LDNet': functools.partial(LDRNN, layer_drop = 0)}
     flm_rnn_layer = rnn_map[args.lm_rnn_layer](args.lm_layer_num, args.lm_rnn_unit, args.lm_word_dim, args.lm_hid_dim, args.lm_droprate)
@@ -100,7 +101,7 @@ if __name__ == "__main__":
     flm_model_seq = slm_map[args.seq_lm_model](flm_model, False, args.lm_droprate, True)
     blm_model_seq = slm_map[args.seq_lm_model](blm_model, True, args.lm_droprate, True)
 
-    pw.info('Building models')
+    logger.info('Building models')
 
     SL_map = {'vanilla':Vanilla_SeqLabel, 'lm-aug': SeqLabel}
     seq_model = SL_map[args.seq_model](flm_model_seq, blm_model_seq, len(c_map), args.seq_c_dim, args.seq_c_hid, args.seq_c_layer, len(gw_map), args.seq_w_dim, args.seq_w_hid, args.seq_w_layer, len(y_map), args.seq_droprate, unit=args.seq_rnn_unit)
@@ -111,11 +112,11 @@ if __name__ == "__main__":
     decoder = CRFDecode(y_map)
     evaluator = eval_wc(decoder, 'f1')
 
-    pw.info('Constructing dataset')
+    logger.info('Constructing dataset')
 
     train_dataset, test_dataset, dev_dataset = [SeqDataset(tup_data, flm_map['\n'], blm_map['\n'], gw_map['<\n>'], c_map[' '], c_map['\n'], y_map['<s>'], y_map['<eof>'], len(y_map), args.batch_size) for tup_data in [train_data, test_data, dev_data]]
 
-    pw.info('Constructing optimizer')
+    logger.info('Constructing optimizer')
 
     param_dict = filter(lambda t: t.requires_grad, seq_model.parameters())
     optim_map = {'Adam' : optim.Adam, 'Adagrad': optim.Adagrad, 'Adadelta': optim.Adadelta, 'SGD': functools.partial(optim.SGD, momentum=0.9)}
@@ -124,10 +125,10 @@ if __name__ == "__main__":
     else:
         optimizer=optim_map[args.update](param_dict)
 
-    pw.info('Saving configues.')
+    logger.info('Saving configues.')
     pw.save_configue(args)
 
-    pw.info('Setting up training environ.')
+    logger.info('Setting up training environ.')
     best_f1 = float('-inf')
     patience_count = 0
     batch_index = 0
@@ -136,8 +137,8 @@ if __name__ == "__main__":
 
     for indexs in range(args.epoch):
 
-        pw.info('############')
-        pw.info('Epoch: {}'.format(indexs))
+        logger.info('############')
+        logger.info('Epoch: {}'.format(indexs))
         pw.nvidia_memory_map()
 
         seq_model.train()
@@ -169,7 +170,7 @@ if __name__ == "__main__":
         pw.add_loss_vs_batch({'dev_f1': dev_f1}, indexs, use_logger = True)
         pw.add_loss_vs_batch({'dev_pre': dev_pre, 'dev_rec': dev_rec}, indexs, use_logger = False)
         
-        pw.info('Saving model...')
+        logger.info('Saving model...')
         pw.save_checkpoint(model = seq_model, is_best = (dev_f1 > best_f1))
 
         if dev_f1 > best_f1:

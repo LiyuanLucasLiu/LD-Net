@@ -144,7 +144,7 @@ if __name__ == "__main__":
         pw.nvidia_memory_map()
 
         seq_model.train()
-        for f_c, f_p, b_c, b_p, flm_w, blm_w, blm_ind, f_w, f_y, f_y_m, _ in iterator = train_dataset.get_tqdm(device):
+        for f_c, f_p, b_c, b_p, flm_w, blm_w, blm_ind, f_w, f_y, f_y_m, _ in train_dataset.get_tqdm(device):
 
             seq_model.zero_grad()
             output = seq_model(f_c, f_p, b_c, b_p, flm_w, blm_w, blm_ind, f_w)
